@@ -1,0 +1,191 @@
+import SwiftUI
+
+/// Sidebar destinations — PureMac-style categories, Purge-style calm labels.
+enum AppSection: String, CaseIterable, Identifiable {
+    case overview = "Overview"
+    case doctor = "Workstation Doctor"
+    case ask = "Ask Stoguard"
+    case pulse = "System Pulse"
+    case envDoctor = "Env Doctor"
+    case buildTrends = "Build Trends"
+    case aiModels = "AI Models"
+    case duplicates = "Duplicates"
+    case packageFinder = "Package Finder"
+    case agentTools = "AI Skills & MCP"
+    case gitRepos = "Git Repos"
+    case codebase = "Codebase"
+    case rulesPlugins = "Rules & Plugins"
+    case fleet = "Fleet Export"
+    case installedApps = "Installed Apps"
+    case developer = "Developer"
+    case packageManagers = "Package Managers"
+    case browserAutomation = "Browser Automation"
+    case containers = "Containers & K8s"
+    case aiTools = "AI Tools"
+    case apps = "Apps"
+    case system = "System"
+    case heavyFolders = "Heavy folders"
+    case trash = "Trash"
+    case about = "About"
+
+    var id: String { rawValue }
+
+    /// Maps to the `category` field in rules.json (or discovery bucket).
+    var ruleCategory: String? {
+        switch self {
+        case .overview, .doctor, .ask, .pulse, .envDoctor, .buildTrends,
+             .aiModels, .duplicates, .packageFinder, .agentTools, .gitRepos, .codebase, .rulesPlugins, .fleet,
+             .installedApps, .about, .trash:
+            return nil
+        case .heavyFolders: return "Unknown heavy folders"
+        default: return rawValue
+        }
+    }
+
+    var icon: String {
+        switch self {
+        case .overview: return "chart.pie.fill"
+        case .doctor: return "stethoscope"
+        case .ask: return "text.bubble.fill"
+        case .pulse: return "heart.text.square.fill"
+        case .envDoctor: return "wrench.and.screwdriver.fill"
+        case .buildTrends: return "chart.line.uptrend.xyaxis"
+        case .aiModels: return "cpu.fill"
+        case .duplicates: return "square.on.square"
+        case .packageFinder: return "shippingbox.and.arrow.backward.fill"
+        case .agentTools: return "puzzlepiece.fill"
+        case .gitRepos: return "arrow.triangle.branch"
+        case .codebase: return "folder.badge.gearshape"
+        case .rulesPlugins: return "puzzlepiece.extension.fill"
+        case .fleet: return "person.3.fill"
+        case .installedApps: return "app.badge.fill"
+        case .developer: return "chevron.left.forwardslash.chevron.right"
+        case .packageManagers: return "archivebox.fill"
+        case .browserAutomation: return "globe.americas.fill"
+        case .containers: return "shippingbox.fill"
+        case .aiTools: return "sparkles"
+        case .apps: return "bubble.left.and.bubble.right.fill"
+        case .system: return "externaldrive.fill"
+        case .heavyFolders: return "folder.badge.questionmark"
+        case .trash: return "trash.fill"
+        case .about: return "info.circle"
+        }
+    }
+
+    var blurb: String {
+        switch self {
+        case .overview: return "Disk usage and reclaimable space at a glance."
+        case .doctor: return "Plain-English diagnosis — what grew, what's unused, and what's safe to fix."
+        case .ask: return "Ask why your SSD is full, what’s slow, or what a cache means."
+        case .pulse: return "CPU, memory, and disk pressure — why the machine feels slow."
+        case .envDoctor: return "Brew, Node, Python, Java, Android SDK health checks."
+        case .buildTrends: return "DerivedData / Gradle cache size over time."
+        case .aiModels: return "Ollama, Hugging Face, LM Studio, and other local model stores."
+        case .duplicates: return "Multiple Node/Python/Rust/simulator/model copies."
+        case .packageFinder: return "Forgotten Homebrew, npm, pipx, and CLI packages still on disk."
+        case .agentTools: return "MCP servers, AI skills, and idle editor extensions."
+        case .gitRepos: return "Large .git folders, stashes, and branch sprawl."
+        case .codebase: return "Point at a repo — heavy folders and binaries."
+        case .rulesPlugins: return "Cloud rules feed + drop-in technology plugins."
+        case .fleet: return "Export a JSON workstation report for IT / teams."
+        case .installedApps: return "See every file an app dropped on your Mac — caches, containers, preferences."
+        case .developer: return "Xcode, simulators, IDE caches, and build artifacts."
+        case .packageManagers: return "npm, Homebrew, pip, Cargo, Gradle, and other package caches."
+        case .browserAutomation: return "Puppeteer, Playwright, and Selenium browser downloads."
+        case .containers: return "Docker, Minikube, Colima — with the correct CLI commands."
+        case .aiTools: return "LLM weights, Hugging Face, and AI IDE working data."
+        case .apps: return "Zoom, Discord, Slack, and everyday app temp files."
+        case .system: return "Shared app caches, logs, and browser data."
+        case .heavyFolders: return "Large folders Stoguard doesn't recognize yet — review before removing."
+        case .trash: return "Your Mac Trash — browse, restore, or permanently empty."
+        case .about: return "Version, stats, and how Stoguard works."
+        }
+    }
+
+    static var scannable: [AppSection] {
+        [.developer, .packageManagers, .browserAutomation, .containers, .aiTools, .apps, .system, .heavyFolders]
+    }
+
+    static var insightTools: [AppSection] {
+        [.doctor, .ask, .pulse, .envDoctor, .buildTrends]
+    }
+
+    static var optimizeTools: [AppSection] {
+        [.aiModels, .duplicates, .packageFinder, .agentTools, .gitRepos, .codebase]
+    }
+
+    static var platformTools: [AppSection] {
+        [.rulesPlugins, .fleet]
+    }
+
+    static var advancedTools: [AppSection] {
+        [.developer, .packageManagers, .browserAutomation, .containers, .aiTools]
+    }
+
+    static var generalCleanup: [AppSection] {
+        [.apps, .system, .heavyFolders]
+    }
+
+    var pureMacAdvancedToolLabel: String? {
+        switch self {
+        case .aiTools: return "AI Apps"
+        case .developer: return "Xcode Junk"
+        case .packageManagers: return "Brew / Node / pip caches"
+        case .containers: return "Docker Cache"
+        case .browserAutomation: return "Browser automation"
+        default: return nil
+        }
+    }
+
+    static func section(forCategory category: String) -> AppSection? {
+        if category == "Unknown heavy folders" { return .heavyFolders }
+        return scannable.first { $0.ruleCategory == category }
+    }
+
+    var sidebarLabel: String {
+        switch self {
+        case .doctor: return "Doctor"
+        case .ask: return "Ask"
+        case .pulse: return "Pulse"
+        case .envDoctor: return "Env"
+        case .buildTrends: return "Builds"
+        case .aiModels: return "Models"
+        case .duplicates: return "Dupes"
+        case .packageFinder: return "Pkg Finder"
+        case .agentTools: return "Skills/MCP"
+        case .gitRepos: return "Git"
+        case .codebase: return "Repo"
+        case .rulesPlugins: return "Rules"
+        case .fleet: return "Fleet"
+        case .packageManagers: return "Packages"
+        case .browserAutomation: return "Browsers"
+        case .containers: return "Containers"
+        case .apps: return "Apps"
+        case .heavyFolders: return "Heavy"
+        default: return rawValue
+        }
+    }
+}
+
+enum SafetyFilter: String, CaseIterable, Identifiable {
+    case all = "All"
+    case safe = "Safe to clean"
+    case check = "Check first"
+
+    var id: String { rawValue }
+
+    func matches(_ safety: Safety) -> Bool {
+        switch self {
+        case .all: return true
+        case .safe: return safety == .safe
+        case .check: return safety == .check || safety == .command
+        }
+    }
+}
+
+enum SortOrder: String, CaseIterable, Identifiable {
+    case largest = "Largest"
+    case name = "Name"
+
+    var id: String { rawValue }
+}

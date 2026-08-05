@@ -1,0 +1,11 @@
+.DS_Store
+# Ignore generated iconset; keep shipped icns + png
+Assets/AppIcon.iconset/
+.build/
+build/
+stoguard/dist/
+*.app
+# Keep website/downloads DMG + binaries for the product site
+.swiftpm/
+DerivedData/
+xcuserdata/

@@ -1,0 +1,362 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Stoguard AI — Developer Workstation Manager</title>
+  <meta name="description" content="Keep every developer workstation fast. Optimize builds. Manage AI models. Clean caches intelligently — macOS, Windows, and Linux." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div class="noise" aria-hidden="true"></div>
+
+  <header class="nav">
+    <a class="logo" href="#top">
+      <span class="logo-mark" aria-hidden="true"></span>
+      Stoguard
+    </a>
+    <nav class="nav-links">
+      <a href="#features">Features</a>
+      <a href="#analysis">AI Analysis</a>
+      <a href="#developers">Developers</a>
+      <a href="#enterprise">Enterprise</a>
+      <a href="#pricing">Pricing</a>
+      <a href="#source">Source</a>
+    </nav>
+    <a class="btn btn-small" href="#downloads">Download</a>
+  </header>
+
+  <main id="top">
+    <!-- HERO -->
+    <section class="hero">
+      <div class="hero-copy">
+        <p class="eyebrow">AI Developer Workstation Manager</p>
+        <h1>Stoguard AI</h1>
+        <p class="lede">
+          Keep every workstation fast. Optimize builds.<br />
+          Manage AI models. Clean caches intelligently.
+        </p>
+        <div class="hero-cta">
+          <a class="btn" href="#downloads">Download</a>
+          <a class="btn btn-ghost" href="#features">See features</a>
+        </div>
+        <p class="platform-note">Works on macOS, Windows, and Linux — one engine, OS-specific rules.</p>
+      </div>
+
+      <div class="hero-dash" id="hero-dash" aria-label="Live workstation dashboard mockup">
+        <div class="dash-chrome">
+          <span></span><span></span><span></span>
+          <p class="dash-title">Workstation Pulse</p>
+        </div>
+        <div class="dash-body">
+          <div class="health-ring">
+            <svg viewBox="0 0 120 120" aria-hidden="true">
+              <circle cx="60" cy="60" r="52" class="ring-bg" />
+              <circle cx="60" cy="60" r="52" class="ring-fg" id="health-ring" />
+            </svg>
+            <div class="health-label">
+              <span>System Health</span>
+              <strong id="health-pct">—</strong>
+            </div>
+          </div>
+
+          <div class="stat-block recover">
+            <span>Recoverable Space</span>
+            <strong id="recover-gb">0.0 GB</strong>
+          </div>
+
+          <ul class="scan-log" id="scan-log"></ul>
+
+          <div class="meter-list" id="meter-list">
+            <div class="meter" data-key="docker"><span>Docker</span><b>0 GB</b><i style="--w:0"></i></div>
+            <div class="meter" data-key="xcode"><span>Xcode</span><b>0 GB</b><i style="--w:0"></i></div>
+            <div class="meter" data-key="ollama"><span>Ollama Models</span><b>0 GB</b><i style="--w:0"></i></div>
+          </div>
+
+          <div class="build-row">
+            <span>Build Performance</span>
+            <em id="build-status">Waiting…</em>
+          </div>
+
+          <button class="btn btn-block" id="run-analysis" type="button">Run AI Analysis</button>
+          <p class="dash-cta" id="dash-cta" hidden>Ready to optimize your workstation?</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- SECTION 2 -->
+    <section class="section" id="features">
+      <div class="section-head">
+        <h2>Your Development Machine Deserves Better</h2>
+        <p>Most cleaners delete files. Stoguard understands your development environment.</p>
+      </div>
+      <div class="cards-3">
+        <article class="card float-a">
+          <div class="card-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="4" width="18" height="14" rx="2"/><path d="M8 20h8M12 18v2"/></svg>
+          </div>
+          <h3>Docker</h3>
+          <p class="muted">Unused Images</p>
+          <strong>23 GB</strong>
+          <span class="pill ok">Safe to Remove</span>
+        </article>
+        <article class="card float-b">
+          <div class="card-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M4 7h16M4 12h10M4 17h13"/><circle cx="18" cy="17" r="2"/></svg>
+          </div>
+          <h3>Xcode</h3>
+          <p class="muted">Derived Data</p>
+          <strong>14 GB</strong>
+          <span class="pill warn">Unused</span>
+        </article>
+        <article class="card float-c">
+          <div class="card-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="8"/><path d="M8 12h8M12 8v8"/></svg>
+          </div>
+          <h3>AI Models</h3>
+          <p class="muted">Ollama</p>
+          <strong>9 GB</strong>
+          <span class="pill info">Archive Suggested</span>
+        </article>
+      </div>
+    </section>
+
+    <!-- SECTION 3 -->
+    <section class="section" id="analysis">
+      <div class="section-head">
+        <h2>AI Workstation Analysis</h2>
+        <p>ChatGPT meets Terminal — grounded in real scan facts.</p>
+      </div>
+      <div class="terminal">
+        <div class="term-bar"><span></span><span></span><span></span><code>$ Analyze my workstation</code></div>
+        <pre class="term-body" id="term-body"></pre>
+        <div class="term-foot">
+          <div>
+            <span class="muted">Estimated Recovery</span>
+            <strong>52.8 GB</strong>
+          </div>
+          <a class="btn" href="#downloads">Run Cleanup?</a>
+        </div>
+      </div>
+    </section>
+
+    <!-- SECTION 4 -->
+    <section class="section" id="everything">
+      <div class="section-head">
+        <h2>Everything Your Developer Machine Needs</h2>
+      </div>
+      <div class="feature-grid">
+        <article class="fcard"><h3>Smart Cleanup</h3><p>Trash-only actions with safety labels and confirmations.</p></article>
+        <article class="fcard"><h3>AI Analysis</h3><p>Plain-English answers: why your SSD is full, what’s idle.</p></article>
+        <article class="fcard"><h3>Build Optimization</h3><p>Track DerivedData and Gradle cache weight over time.</p></article>
+        <article class="fcard"><h3>Docker Manager</h3><p>Size the VM disk correctly. Copy prune commands — never rm -rf.</p></article>
+        <article class="fcard"><h3>AI Model Manager</h3><p>Ollama, Hugging Face, LM Studio, ComfyUI, Whisper, llama.cpp.</p></article>
+        <article class="fcard"><h3>Storage Timeline</h3><p>See what grew since yesterday and which category caused it.</p></article>
+        <article class="fcard"><h3>Duplicate Finder</h3><p>Multiple Node, Python, Rust, simulator, and model copies.</p></article>
+        <article class="fcard"><h3>Environment Doctor</h3><p>Brew, JDKs, Android SDK, and runtime conflicts — diagnosed.</p></article>
+      </div>
+    </section>
+
+    <!-- SECTION 5 -->
+    <section class="section" id="before-after">
+      <div class="section-head">
+        <h2>Before vs After</h2>
+      </div>
+      <div class="split" id="ba-split">
+        <div class="ba before">
+          <h3>Before</h3>
+          <ul>
+            <li><span>Free Space</span><strong data-ba="b-free">18 GB</strong></li>
+            <li><span>Build Time</span><strong data-ba="b-build">52 sec</strong></li>
+            <li><span>CPU</span><strong data-ba="b-cpu">85%</strong></li>
+            <li><span>Storage Health</span><strong class="bad">Poor</strong></li>
+          </ul>
+        </div>
+        <div class="ba after">
+          <h3>After</h3>
+          <ul>
+            <li><span>Free Space</span><strong data-ba="a-free">18 GB</strong></li>
+            <li><span>Build Time</span><strong data-ba="a-build">52 sec</strong></li>
+            <li><span>CPU</span><strong data-ba="a-cpu">85%</strong></li>
+            <li><span>Storage Health</span><strong class="good" data-ba="a-health">Poor</strong></li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <!-- SECTION 6 -->
+    <section class="section" id="tech">
+      <div class="section-head">
+        <h2>Supported Technologies</h2>
+      </div>
+      <div class="tech-cloud" id="tech-cloud"></div>
+    </section>
+
+    <!-- SECTION 7 -->
+    <section class="section" id="ai-rec">
+      <div class="section-head">
+        <h2>AI Recommendations</h2>
+      </div>
+      <div class="chat-card">
+        <div class="chat-meta">Stoguard · just now</div>
+        <p>Good afternoon.</p>
+        <p>I analyzed your workstation.</p>
+        <p>I found:</p>
+        <ul>
+          <li>38 GB of removable caches</li>
+          <li>11 GB old Docker images</li>
+          <li>Duplicate Flutter SDK</li>
+          <li>4 inactive Python environments</li>
+        </ul>
+        <p class="muted">Estimated cleanup time: <strong>42 seconds</strong></p>
+        <a class="btn" href="#downloads">Clean Everything</a>
+      </div>
+    </section>
+
+    <!-- SECTION 8 -->
+    <section class="section" id="developers">
+      <div class="section-head">
+        <h2>Developers Love Fast Machines</h2>
+      </div>
+      <div class="quotes">
+        <blockquote>
+          <div class="stars" aria-label="5 stars">★★★★★</div>
+          <p>Saved me 62GB. My builds are finally fast.</p>
+          <cite>— iOS Engineer</cite>
+        </blockquote>
+        <blockquote>
+          <div class="stars">★★★★★</div>
+          <p>Best developer utility I've installed.</p>
+          <cite>— ML Engineer</cite>
+        </blockquote>
+        <blockquote>
+          <div class="stars">★★★★★</div>
+          <p>Finally something that understands Docker.</p>
+          <cite>— Backend Developer</cite>
+        </blockquote>
+      </div>
+    </section>
+
+    
+    <section class="section slim" id="enterprise">
+      <div class="section-head">
+        <h2>Enterprise</h2>
+        <p>Team tier adds fleet ingest and an aggregated machine console — still no telemetry by default.</p>
+      </div>
+    </section>
+
+    <section class="section slim" id="downloads">
+      <div class="section-head">
+        <h2>Download</h2>
+        <p>Pick your platform. Same product — OS-specific rules and a shared engine.</p>
+      </div>
+      <div class="hero-cta center" style="flex-wrap:wrap;gap:12px">
+        <a class="btn" href="downloads/Stoguard-0.3.1.dmg" download>macOS</a>
+        <a class="btn" href="downloads/stoguard-windows-amd64.exe" download>Windows</a>
+        <a class="btn" href="downloads/stoguard-linux-amd64" download>Linux</a>
+      </div>
+      <p class="muted center" style="margin-top:14px">
+        Also:
+        <a href="downloads/stoguard-darwin-arm64" download>Apple Silicon</a> ·
+        <a href="downloads/stoguard-darwin-amd64" download>Intel Mac</a> ·
+        <a href="downloads/stoguard-linux-arm64" download>Linux ARM</a>
+        <br />Trash-safe · no telemetry · runs on your machine only.
+      </p>
+    </section>
+
+    <section class="section slim" id="pricing">
+      <div class="section-head">
+        <h2>Pricing</h2>
+        <p>Honest tiers for what’s shipping today in the cross-platform app. Local builds default to <strong>Team</strong> (full features including fleet).</p>
+      </div>
+      <div class="pricing-grid">
+        <article class="price-card">
+          <h3>Free</h3>
+          <p class="price-tag">$0</p>
+          <p class="muted">Individuals getting oriented</p>
+          <ul>
+            <li>Workstation scan</li>
+            <li>Trash-safe cleanup</li>
+            <li>Storage timeline</li>
+            <li class="muted">No Doctor / Ask / duplicates / models</li>
+          </ul>
+        </article>
+        <article class="price-card featured">
+          <h3>Pro</h3>
+          <p class="price-tag">Default locally</p>
+          <p class="muted">Solo developers — everything except fleet admin</p>
+          <ul>
+            <li>Everything in Free</li>
+            <li>Workstation Doctor</li>
+            <li>Ask Stoguard (scan-grounded Q&amp;A)</li>
+            <li>Smarter duplicate grouping</li>
+            <li>AI model path inventory</li>
+            <li>Fleet JSON export for IT</li>
+          </ul>
+        </article>
+        <article class="price-card">
+          <h3>Team</h3>
+          <p class="price-tag">Org / IT</p>
+          <p class="muted">Unlock with <code>STOGUARD_TIER=team</code> or <code>license.json</code></p>
+          <ul>
+            <li>Everything in Pro</li>
+            <li>Fleet ingest API</li>
+            <li>Aggregated fleet console (hostname, reclaimable, top categories)</li>
+          </ul>
+        </article>
+      </div>
+      <div class="matrix-wrap">
+        <table class="feature-matrix">
+          <thead>
+            <tr><th>Live feature</th><th>Free</th><th>Pro</th><th>Team</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>Scan + Trash + timeline</td><td>✓</td><td>✓</td><td>✓</td></tr>
+            <tr><td>Workstation Doctor</td><td>—</td><td>✓</td><td>✓</td></tr>
+            <tr><td>Ask Stoguard</td><td>—</td><td>✓</td><td>✓</td></tr>
+            <tr><td>Duplicates + AI models</td><td>—</td><td>✓</td><td>✓</td></tr>
+            <tr><td>Fleet JSON export</td><td>—</td><td>✓</td><td>✓</td></tr>
+            <tr><td>Fleet ingest &amp; console</td><td>—</td><td>—</td><td>✓</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="hero-cta center" style="margin-top:22px">
+        <a class="btn" href="#downloads">Get Stoguard</a>
+      </div>
+    </section>
+
+<section class="section slim" id="source">
+      <div class="section-head">
+        <h2>Source &amp; credit</h2>
+        <p>
+          <strong>Stoguard</strong> is this product — Workstation Doctor, Ask AI, model manager,
+          env doctor, plugins, fleet export, and more.
+        </p>
+        <p class="muted" style="margin-top:12px">
+          Early cleanup scanning drew inspiration from open Mac cleaner utilities. Stoguard is its own
+          product and brand. A public Stoguard GitHub org will be linked here when published —
+          this site no longer points at a third-party personal repo.
+        </p>
+      </div>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <div>
+      <strong>Stoguard</strong>
+      <span class="muted">AI developer workstation manager</span>
+    </div>
+    <nav>
+      <a href="#source">Source</a>
+      <a href="#features">Documentation</a>
+      <a href="privacy.html">Privacy</a>
+      <a href="#downloads">Download</a>
+    </nav>
+  </footer>
+
+  <script src="app.js"></script>
+</body>
+</html>

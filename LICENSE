@@ -1,0 +1,37 @@
+Stoguard — Proprietary Software License
+
+Copyright (c) 2026 Prajwal. All Rights Reserved.
+
+This software and its source code, documentation, rules database, and
+associated materials (collectively, the "Software") are the exclusive property
+of the copyright holder.
+
+RESTRICTIONS
+
+You may NOT, without prior written permission from the copyright holder:
+
+  • copy, reproduce, or duplicate the Software
+  • modify, adapt, or create derivative works based on the Software
+  • distribute, publish, sublicense, rent, lease, or lend the Software
+  • reverse engineer, decompile, or disassemble the Software, except where
+    applicable law expressly permits and cannot be waived
+  • remove or alter any copyright, trademark, or proprietary notices
+
+PERMITTED USE
+
+Use of the Software is limited to personal use by the copyright holder and
+anyone explicitly authorized in writing. Building from source for your own
+authorized use does not grant rights to redistribute or republish the Software.
+
+NO OPEN SOURCE / NO CONTRIBUTIONS
+
+This project is not open source. Pull requests, forks for redistribution, and
+unsolicited contributions are not accepted unless explicitly invited in writing.
+
+DISCLAIMER
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED. IN NO EVENT SHALL THE COPYRIGHT HOLDER BE LIABLE FOR ANY CLAIM,
+DAMAGES, OR OTHER LIABILITY ARISING FROM USE OF THE SOFTWARE.
+
+Unauthorized copying or use may violate copyright and other applicable laws.

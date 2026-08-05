@@ -1,0 +1,24 @@
+{
+  "id": "windows-dev-caches",
+  "name": "Windows developer caches",
+  "version": "1.0",
+  "platforms": ["windows"],
+  "rules": [
+    {
+      "id": "win-npm-cache",
+      "name": "npm cache (Windows)",
+      "path": "~\\AppData\\Local\\npm-cache",
+      "category": "Package Managers",
+      "safety": "safe",
+      "note": "Portable plugin rule for a future Windows agent. npm download cache."
+    },
+    {
+      "id": "win-nuget",
+      "name": "NuGet packages",
+      "path": "~\\.nuget\\packages",
+      "category": "Package Managers",
+      "safety": "check",
+      "note": "NuGet global packages folder."
+    }
+  ]
+}

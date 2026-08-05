@@ -1,0 +1,25 @@
+{
+  "id": "linux-dev-caches",
+  "name": "Linux developer caches",
+  "version": "1.0",
+  "platforms": ["linux"],
+  "rules": [
+    {
+      "id": "linux-pip-cache",
+      "name": "pip cache (Linux)",
+      "path": "~/.cache/pip",
+      "category": "Package Managers",
+      "safety": "safe",
+      "note": "Portable plugin rule for a future Linux agent."
+    },
+    {
+      "id": "linux-docker-root",
+      "name": "Docker data root",
+      "path": "/var/lib/docker",
+      "category": "Containers & K8s",
+      "safety": "command",
+      "command": "docker system prune -a --volumes",
+      "note": "Docker engine data — prune via CLI, never rm -rf."
+    }
+  ]
+}

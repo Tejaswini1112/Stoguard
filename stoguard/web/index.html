@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Stoguard</title>
+  <link rel="stylesheet" href="styles.css" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+</head>
+<body>
+  <div class="app">
+    <aside class="sidebar">
+      <div class="brand">
+        <span class="mark"></span>
+        <div>
+          <strong>Stoguard</strong>
+          <small id="platform-label">loading…</small>
+        </div>
+      </div>
+      <div class="tier-pill" id="tier-pill">Pro</div>
+      <nav>
+        <button class="nav active" data-view="overview">Overview</button>
+        <button class="nav" data-view="doctor" data-feature="doctor">Workstation Doctor <span class="tier-badge">Pro</span></button>
+        <button class="nav" data-view="ask" data-feature="ask">Ask Stoguard <span class="tier-badge">Pro</span></button>
+        <button class="nav" data-view="duplicates" data-feature="duplicates">Duplicates <span class="tier-badge">Pro</span></button>
+        <button class="nav" data-view="models" data-feature="models">AI Models <span class="tier-badge">Pro</span></button>
+        <button class="nav" data-view="history">Storage Timeline</button>
+        <button class="nav" data-view="items">All Findings</button>
+        <button class="nav" data-view="fleet" data-feature="fleet_admin">Fleet <span class="tier-badge team">Team</span></button>
+        <button class="nav" data-view="account">Pricing / Account</button>
+      </nav>
+      <div class="sidebar-foot">
+        <button id="btn-scan" class="btn primary block">Scan workstation</button>
+        <p class="hint">Trash-only cleanup · no telemetry · macOS / Windows / Linux</p>
+      </div>
+    </aside>
+
+    <main>
+      <header class="top">
+        <div>
+          <h1 id="view-title">Overview</h1>
+          <p id="view-sub">AI developer workstation manager</p>
+        </div>
+        <div class="stats" id="hero-stats"></div>
+      </header>
+
+      <section id="view-overview" class="view active"></section>
+      <section id="view-doctor" class="view"></section>
+      <section id="view-ask" class="view">
+        <div class="chat">
+          <div id="chat-log" class="chat-log"></div>
+          <form id="chat-form" class="chat-form">
+            <input id="chat-input" placeholder="Why is my disk full? What’s safe to clean?" autocomplete="off" />
+            <button class="btn primary" type="submit">Ask</button>
+          </form>
+        </div>
+      </section>
+      <section id="view-duplicates" class="view"></section>
+      <section id="view-models" class="view"></section>
+      <section id="view-history" class="view"></section>
+      <section id="view-items" class="view"></section>
+      <section id="view-fleet" class="view"></section>
+      <section id="view-account" class="view"></section>
+    </main>
+  </div>
+  <div id="toast" class="toast hidden"></div>
+  <script src="app.js"></script>
+</body>
+</html>
