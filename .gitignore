@@ -4,6 +4,7 @@ Assets/AppIcon.iconset/
 .build/
 build/
 stoguard/dist/
+.cache/
 *.app
 # Keep website/downloads DMG + binaries for the product site
 .swiftpm/

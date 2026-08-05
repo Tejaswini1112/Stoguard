@@ -1,0 +1,117 @@
+name: Sync from prajwal2308/VACS
+
+on:
+  schedule:
+    # Check upstream several times a day
+    - cron: "0 */6 * * *"
+  workflow_dispatch:
+  push:
+    paths:
+      - "scripts/sync-from-vacs.sh"
+      - ".github/workflows/sync-vacs.yml"
+
+permissions:
+  contents: write
+  pull-requests: write
+  issues: write
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Stoguard
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Check VACS upstream SHA
+        id: check
+        run: |
+          set -euo pipefail
+          chmod +x scripts/sync-from-vacs.sh
+          NEW=$(./scripts/sync-from-vacs.sh --sha-only)
+          OLD=""
+          [[ -f .vacs-upstream-sha ]] && OLD=$(tr -d '[:space:]' < .vacs-upstream-sha)
+          echo "new=$NEW" >> "$GITHUB_OUTPUT"
+          echo "old=${OLD:-none}" >> "$GITHUB_OUTPUT"
+          if [[ "$NEW" == "$OLD" ]]; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+            echo "VACS is unchanged ($NEW)"
+          else
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+            echo "VACS has new commits: ${OLD:-none} -> $NEW"
+          fi
+
+      - name: Sync upstream into branch
+        if: steps.check.outputs.changed == 'true'
+        run: |
+          set -euo pipefail
+          git config user.name "stoguard-bot"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          BRANCH="sync/vacs-${{ steps.check.outputs.new }}"
+          git checkout -B "$BRANCH"
+          ./scripts/sync-from-vacs.sh
+          # Keep Stoguard executable branding in build scripts
+          if [[ -f scripts/build-app.sh ]]; then
+            sed -i 's/^APP="VACS"/APP="Stoguard"/; s|Sources/VACS|Sources/Stoguard|g; s/DISPLAY_NAME=.*/DISPLAY_NAME="Stoguard"/' scripts/build-app.sh || true
+          fi
+          git add -A
+          if git diff --cached --quiet; then
+            echo "Sync produced no file changes (SHA updated only?)"
+            git add .vacs-upstream-sha
+          fi
+          git commit -m "chore: sync upstream prajwal2308/VACS (${{ steps.check.outputs.new }})" || {
+            echo "Nothing to commit"
+            exit 0
+          }
+          git push -u origin "$BRANCH" --force
+          echo "branch=$BRANCH" >> "$GITHUB_ENV"
+
+      - name: Open pull request
+        if: steps.check.outputs.changed == 'true' && env.branch != ''
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const branch = process.env.branch;
+            const newSha = '${{ steps.check.outputs.new }}';
+            const oldSha = '${{ steps.check.outputs.old }}';
+            const body = [
+              'Automated sync from upstream [prajwal2308/VACS](https://github.com/prajwal2308/VACS).',
+              '',
+              `| | SHA |`,
+              `|---|---|`,
+              `| Previous | \`${oldSha}\` |`,
+              `| New | \`${newSha}\` |`,
+              '',
+              '### Review checklist',
+              '- [ ] `Sources/Stoguard/Resources/rules.json` looks correct',
+              '- [ ] Stoguard branding still intact (not reverted to VACS)',
+              '- [ ] `./scripts/build-app.sh` still builds `Stoguard.app`',
+              '- [ ] Trash / Library safety / Package Finder / Skills&MCP still present',
+              '',
+              `Upstream: https://github.com/prajwal2308/VACS/commit/${newSha}`,
+            ].join('\n');
+
+            const { data: prs } = await github.rest.pulls.list({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              head: `${context.repo.owner}:${branch}`,
+              state: 'open',
+            });
+            if (prs.length) {
+              core.info(`PR already open: ${prs[0].html_url}`);
+              return;
+            }
+            const { data: pr } = await github.rest.pulls.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: `chore: sync upstream VACS ${newSha.slice(0, 7)}`,
+              head: branch,
+              base: 'main',
+              body,
+            });
+            core.info(`Opened ${pr.html_url}`);
+
+      - name: Notify when unchanged
+        if: steps.check.outputs.changed != 'true'
+        run: echo "No VACS changes to sync."
