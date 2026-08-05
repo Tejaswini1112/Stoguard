@@ -4,7 +4,7 @@ import Darwin
 /// Maps trashed item paths → original paths so Put Back works for Stoguard-deleted items.
 /// Finder only restores items it trashed itself; NSWorkspace.recycle does not write that metadata.
 enum TrashOriginStore {
-    private static let xattrName = "com.vacs.originalPath"
+    private static let xattrName = "com.stoguard.originalPath"
 
     private static var storeURL: URL {
         let base = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first!

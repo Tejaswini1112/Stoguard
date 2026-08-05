@@ -11,7 +11,7 @@ Stoguard deletes and moves files on your Mac. Safety is the core design constrai
 | **Allowlist scanning** | Known paths come from auditable `rules.json` with safety levels |
 | **No silent erase** | No `rm`, no `FileManager.removeItem` on user cache paths during normal clean |
 | **No elevation** | No `sudo`, no root helper, no kernel extensions |
-| **Local only** | Zero network requests — verify: no `URLSession` in source |
+| **Local by default** | No telemetry. Optional URLSession only for user-enabled cloud rules; optional localhost Ollama for Ask |
 
 ## Safety levels
 

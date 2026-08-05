@@ -167,7 +167,7 @@ struct BuildTrendStore: Codable, Sendable {
 
 @MainActor
 final class ContinuousMonitor: ObservableObject {
-    @Published var enabled: Bool = UserDefaults.standard.bool(forKey: "vacs.monitorEnabled")
+    @Published var enabled: Bool = UserDefaults.standard.bool(forKey: "stoguard.monitorEnabled")
     @Published var lastPulse: SystemPulse?
     @Published var alert: String?
 
@@ -192,7 +192,7 @@ final class ContinuousMonitor: ObservableObject {
 
     func setEnabled(_ on: Bool, onDiskDrop: @escaping (Int64) -> Void) {
         enabled = on
-        UserDefaults.standard.set(on, forKey: "vacs.monitorEnabled")
+        UserDefaults.standard.set(on, forKey: "stoguard.monitorEnabled")
         if on { start(onDiskDrop: onDiskDrop) } else { stop() }
     }
 

@@ -62,7 +62,7 @@ func (s *Server) handleStatus(w http.ResponseWriter, r *http.Request) {
 	sys := platform.CollectSystem()
 	writeJSON(w, models.AppStatus{
 		Name:     "Stoguard",
-		Version:  "1.0.0",
+		Version:  "0.3.2",
 		Platform: platform.OS(),
 		OS:       runtime.GOOS,
 		Arch:     runtime.GOARCH,

@@ -88,7 +88,7 @@ final class AppModel: ObservableObject {
     @Published var plugins: [PluginLoader.PluginFile] = []
     @Published var fleetExportURL: URL?
     @Published var fleetStatus: String?
-    @Published var useOllamaChat: Bool = UserDefaults.standard.bool(forKey: "vacs.useOllamaChat")
+    @Published var useOllamaChat: Bool = UserDefaults.standard.bool(forKey: "stoguard.useOllamaChat")
     @Published var monitorAlert: String?
 
     /// Shown before any trash operation — user must confirm every time.
@@ -708,6 +708,7 @@ final class AppModel: ObservableObject {
             rebuildDoctorReport()
             refreshDisk()
             refreshTrashSummary()
+            loadTrash()
             return trashed.count
         } else if case .scanItem(let item) = detailTarget {
             if let idx = items.firstIndex(where: { $0.id == item.id }) {
@@ -731,6 +732,8 @@ final class AppModel: ObservableObject {
                     recordTrashReclaimed(reclaimed)
                     rebuildDoctorReport()
                     refreshDisk()
+                    refreshTrashSummary()
+                    loadTrash()
                     return trashed.count
                 }
             }
@@ -740,6 +743,8 @@ final class AppModel: ObservableObject {
         recordTrashReclaimed(reclaimed)
         rebuildDoctorReport()
         refreshDisk()
+        refreshTrashSummary()
+        loadTrash()
         return trashed.count
     }
 
@@ -1165,7 +1170,7 @@ final class AppModel: ObservableObject {
 
     func setOllamaChat(_ on: Bool) {
         useOllamaChat = on
-        UserDefaults.standard.set(on, forKey: "vacs.useOllamaChat")
+        UserDefaults.standard.set(on, forKey: "stoguard.useOllamaChat")
     }
 
     func setContinuousMonitoring(_ on: Bool) {

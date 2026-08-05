@@ -52,8 +52,8 @@ cat > "$APP_DIR/Contents/Info.plist" <<PLIST
   <key>CFBundleName</key><string>$DISPLAY_NAME</string>
   <key>CFBundleDisplayName</key><string>$DISPLAY_NAME</string>
   <key>CFBundleIdentifier</key><string>app.stoguard.Stoguard</string>
-  <key>CFBundleVersion</key><string>0.3.1</string>
-  <key>CFBundleShortVersionString</key><string>0.3.1</string>
+  <key>CFBundleVersion</key><string>0.3.2</string>
+  <key>CFBundleShortVersionString</key><string>0.3.2</string>
   <key>CFBundlePackageType</key><string>APPL</string>
   <key>CFBundleExecutable</key><string>$APP</string>
   <key>CFBundleIconFile</key><string>AppIcon</string>

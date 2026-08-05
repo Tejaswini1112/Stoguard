@@ -202,7 +202,7 @@ enum WorkstationChat {
 
     /// If Ollama is installed, ask it to rewrite the grounded facts — still fact-bound.
     private static func maybeOllama(question: String, grounded: String, context: Context) async -> String? {
-        guard UserDefaults.standard.bool(forKey: "vacs.useOllamaChat") else { return nil }
+        guard UserDefaults.standard.bool(forKey: "stoguard.useOllamaChat") else { return nil }
         guard FileManager.default.fileExists(atPath: "/usr/local/bin/ollama")
                 || FileManager.default.fileExists(atPath: "/opt/homebrew/bin/ollama")
                 || which("ollama") != nil
@@ -217,7 +217,7 @@ enum WorkstationChat {
         \(grounded)
         """
 
-        let model = UserDefaults.standard.string(forKey: "vacs.ollamaModel") ?? "llama3.2"
+        let model = UserDefaults.standard.string(forKey: "stoguard.ollamaModel") ?? "llama3.2"
         return await runOllama(model: model, prompt: prompt)
     }
 

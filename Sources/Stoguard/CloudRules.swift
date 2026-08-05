@@ -2,20 +2,24 @@ import Foundation
 
 /// Versioned remote rules — download when newer, fall back to bundled `rules.json`.
 enum CloudRules {
-    /// Optional remote rules feed. Set UserDefaults `vacs.rulesFeedURL` to enable.
+    /// Optional remote rules feed. Set UserDefaults `stoguard.rulesFeedURL` to enable.
     /// No default third-party URL — Stoguard ships bundled rules.
     static var feedURL: URL? {
-        if let s = UserDefaults.standard.string(forKey: "vacs.rulesFeedURL"),
-           let u = URL(string: s) {
-            return u
+        for key in ["stoguard.rulesFeedURL", "vacs.rulesFeedURL"] {
+            if let s = UserDefaults.standard.string(forKey: key),
+               let u = URL(string: s), !s.isEmpty {
+                return u
+            }
         }
         return nil
     }
 
     static var manifestURL: URL? {
-        if let s = UserDefaults.standard.string(forKey: "vacs.rulesManifestURL"),
-           let u = URL(string: s) {
-            return u
+        for key in ["stoguard.rulesManifestURL", "vacs.rulesManifestURL"] {
+            if let s = UserDefaults.standard.string(forKey: key),
+               let u = URL(string: s), !s.isEmpty {
+                return u
+            }
         }
         return nil
     }

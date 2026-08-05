@@ -39,8 +39,8 @@ Stoguard finds what’s eating a developer workstation — Docker, package cache
 - Parallel rule-based scan with adaptive skips + fingerprint cache  
 - Symlink-safe Trash / recycle staging  
 - Workstation Doctor, storage timeline, duplicates, Ask AI (Ollama optional)  
-- Free / Pro / Team feature tiers (local builds default to **Pro**)  
-- Team fleet ingest + console (`STOGUARD_TIER=team`)
+- Free / Pro / Team feature tiers (local/dev builds default to **Team** for full unlock)  
+- Team fleet ingest + console (set `STOGUARD_TIER=free` or `pro` to simulate lower tiers)
 
 ## Quick start
 
