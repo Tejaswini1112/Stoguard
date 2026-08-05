@@ -2,6 +2,16 @@
 
 All notable changes to Stoguard are documented here.
 
+## [0.4.0] — 2026-08-05
+
+### Best-on-every-platform
+
+- **Universal macOS app** (arm64 + x86_64 lipo)
+- **Windows Recycle Bin** via PowerShell VisualBasic SendToRecycleBin (staging fallback)
+- **Linux/BSD trash** via `gio trash` / `trash-put` then FreeDesktop Trash
+- **macOS Go trash** uses Finder delete for Put Back metadata
+- **Package Finder + Skills/MCP** in the cross-platform Go UI (same as native Optimize tools)
+
 ## [0.3.2] — 2026-08-05
 
 ### Fixed (from [VACS issues](https://github.com/prajwal2308/VACS/issues))

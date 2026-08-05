@@ -5,6 +5,8 @@ const state = {
   doctor: null,
   duplicates: [],
   models: [],
+  packages: [],
+  agentTools: [],
   history: [],
   fleet: [],
   view: "overview",
@@ -16,6 +18,8 @@ const titles = {
   ask: ["Ask Stoguard", "Answers grounded in your last scan"],
   duplicates: ["Duplicates", "Overlapping caches and installs"],
   models: ["AI Models", "Local model paths from scan"],
+  packages: ["Package Finder", "Forgotten brew / npm / pipx / CLI installs"],
+  agenttools: ["Skills & MCP", "MCP configs, skill packs, idle extensions"],
   history: ["Storage Timeline", "Reclaimable safe space over time"],
   items: ["All Findings", "Everything the scanner measured"],
   fleet: ["Fleet", "Team machine rollup"],
@@ -115,7 +119,10 @@ function setView(name) {
   $("#view-sub").textContent = s;
   if (name === "fleet") loadFleet();
   if (name === "models" && state.scan && !state.models.length) loadModels();
+  if (name === "packages") loadPackages();
+  if (name === "agenttools") loadAgentTools();
   if (name === "account") renderAccount();
+  render();
 }
 
 function updateTierUI() {
@@ -222,6 +229,55 @@ function renderOverview() {
         <div class="list" style="margin-top:12px">${top.map((it) => itemRow(it)).join("")}</div>
       </div>
     </div>`;
+}
+
+
+function renderPackages() {
+  const el = $("#view-packages");
+  if (!el) return;
+  if (!allows("packages")) {
+    el.innerHTML = `<div class="empty">Package Finder is a Pro feature.</div>`;
+    return;
+  }
+  const list = state.packages || [];
+  if (!list.length) {
+    el.innerHTML = `<div class="empty">No sizable packages found yet — open this tab to scan installs.</div>`;
+    return;
+  }
+  el.innerHTML = `<div class="list">${list.map((p) => `
+    <div class="row">
+      <div>
+        <div class="name">${escapeHtml(p.name)} <span class="badge check">${escapeHtml(p.source)}</span></div>
+        <div class="meta">${escapeHtml(p.path)}</div>
+        <div class="meta">${escapeHtml(p.detail || "")}${p.daysIdle != null && p.daysIdle >= 45 ? ` · idle ${p.daysIdle}d` : ""}</div>
+      </div>
+      <div class="size">${fmtBytes(p.sizeBytes)}</div>
+      <button class="btn small" data-reveal="${escapeAttr(p.path)}">Reveal</button>
+    </div>`).join("")}</div>`;
+}
+
+function renderAgentTools() {
+  const el = $("#view-agenttools");
+  if (!el) return;
+  if (!allows("agent_tools")) {
+    el.innerHTML = `<div class="empty">AI Skills & MCP is a Pro feature.</div>`;
+    return;
+  }
+  const list = state.agentTools || [];
+  if (!list.length) {
+    el.innerHTML = `<div class="empty">No MCP configs, skills, or large extensions found.</div>`;
+    return;
+  }
+  el.innerHTML = `<div class="list">${list.map((f) => `
+    <div class="row">
+      <div>
+        <div class="name">${escapeHtml(f.name)} <span class="badge ${f.isStale ? "never" : "check"}">${escapeHtml(f.kind)}</span></div>
+        <div class="meta">${escapeHtml(f.path)}</div>
+        <div class="meta">${escapeHtml(f.detail || "")}</div>
+      </div>
+      <div class="size">${fmtBytes(f.sizeBytes)}</div>
+      <button class="btn small" data-reveal="${escapeAttr(f.path)}">Reveal</button>
+    </div>`).join("")}</div>`;
 }
 
 function renderDoctor() {
@@ -551,6 +607,23 @@ async function loadFleet() {
     toast(e.message);
   }
   renderFleet();
+  bindActions();
+}
+
+
+async function loadPackages() {
+  if (!allows("packages")) { renderPackages(); bindActions(); return; }
+  try { state.packages = await api("/api/packages"); }
+  catch (e) { state.packages = []; toast(e.message); }
+  renderPackages();
+  bindActions();
+}
+
+async function loadAgentTools() {
+  if (!allows("agent_tools")) { renderAgentTools(); bindActions(); return; }
+  try { state.agentTools = await api("/api/agent-tools"); }
+  catch (e) { state.agentTools = []; toast(e.message); }
+  renderAgentTools();
   bindActions();
 }
 

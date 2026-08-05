@@ -31,8 +31,9 @@ Stoguard finds what’s eating a developer workstation — Docker, package cache
 
 | Component | Path | Platforms |
 |-----------|------|-----------|
-| **Native macOS app** | `Sources/Stoguard` → `Stoguard.app` | macOS 14+ |
-| **Cross-platform engine + UI** | `stoguard/` (Go) | macOS · Windows · Linux |
+| **Native macOS app (universal)** | `Sources/Stoguard` → `Stoguard.app` | macOS 14+ Apple Silicon **and** Intel |
+| **Cross-platform engine + UI** | `stoguard/` (Go) | macOS · Windows · Linux (x64/ARM) |
+| **OS Trash** | Finder / Recycle Bin / FreeDesktop | Best-effort native trash on each OS |
 | **Marketing site** | `website/` | Static |
 
 ### Core capabilities

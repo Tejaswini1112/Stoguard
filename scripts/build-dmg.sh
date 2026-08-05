@@ -4,7 +4,7 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-VERSION="${1:-0.3.2}"
+VERSION="${1:-0.4.0}"
 STAGING="$ROOT/build/dmg-staging"
 DMG="$ROOT/build/Stoguard-${VERSION}.dmg"
 

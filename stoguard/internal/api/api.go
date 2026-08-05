@@ -9,12 +9,14 @@ import (
 	"runtime"
 	"sync"
 
+	"github.com/stoguard/stoguard/internal/agenttools"
 	"github.com/stoguard/stoguard/internal/chat"
 	"github.com/stoguard/stoguard/internal/doctor"
 	"github.com/stoguard/stoguard/internal/duplicates"
 	"github.com/stoguard/stoguard/internal/fleet"
 	"github.com/stoguard/stoguard/internal/history"
 	"github.com/stoguard/stoguard/internal/models"
+	"github.com/stoguard/stoguard/internal/packages"
 	"github.com/stoguard/stoguard/internal/platform"
 	"github.com/stoguard/stoguard/internal/scanner"
 	"github.com/stoguard/stoguard/internal/tier"
@@ -47,6 +49,8 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("/api/history", s.handleHistory)
 	mux.HandleFunc("/api/duplicates", s.handleDuplicates)
 	mux.HandleFunc("/api/models", s.handleModels)
+	mux.HandleFunc("/api/packages", s.handlePackages)
+	mux.HandleFunc("/api/agent-tools", s.handleAgentTools)
 	mux.HandleFunc("/api/trash", s.handleTrash)
 	mux.HandleFunc("/api/ask", s.handleAsk)
 	mux.HandleFunc("/api/reveal", s.handleReveal)
@@ -62,7 +66,7 @@ func (s *Server) handleStatus(w http.ResponseWriter, r *http.Request) {
 	sys := platform.CollectSystem()
 	writeJSON(w, models.AppStatus{
 		Name:     "Stoguard",
-		Version:  "0.3.2",
+		Version:  "0.4.0",
 		Platform: platform.OS(),
 		OS:       runtime.GOOS,
 		Arch:     runtime.GOARCH,
@@ -148,6 +152,22 @@ func (s *Server) handleModels(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, models.AIModelPaths(s.last.Items))
+}
+
+func (s *Server) handlePackages(w http.ResponseWriter, r *http.Request) {
+	if !tier.Allows("packages") {
+		http.Error(w, "Package Finder requires Pro or Team", http.StatusPaymentRequired)
+		return
+	}
+	writeJSON(w, packages.Scan())
+}
+
+func (s *Server) handleAgentTools(w http.ResponseWriter, r *http.Request) {
+	if !tier.Allows("agent_tools") {
+		http.Error(w, "AI Skills & MCP requires Pro or Team", http.StatusPaymentRequired)
+		return
+	}
+	writeJSON(w, agenttools.Scan())
 }
 
 func (s *Server) handleTrash(w http.ResponseWriter, r *http.Request) {
