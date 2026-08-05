@@ -76,13 +76,52 @@ main { padding: 28px 32px 48px; overflow: auto; }
 .top h1 { margin: 0; font-size: 1.7rem; letter-spacing: -0.03em; }
 .top p { margin: 6px 0 0; color: var(--muted); }
 
-.stats { display: flex; gap: 10px; flex-wrap: wrap; }
+.stats { display: flex; gap: 10px; flex-wrap: wrap; align-items: stretch; }
 .stat {
   background: var(--panel); border: 1px solid var(--line); border-radius: 12px;
   padding: 10px 14px; min-width: 110px;
 }
 .stat b { display: block; font-size: 1.05rem; font-variant-numeric: tabular-nums; }
 .stat span { color: var(--muted); font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.05em; }
+
+.scan-controls {
+  display: flex; flex-direction: column; gap: 8px; align-items: flex-end;
+  min-width: 220px;
+}
+.scan-controls .scan-row {
+  display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end;
+}
+.scan-controls .scan-status {
+  color: var(--muted); font-size: 0.75rem; text-align: right;
+}
+.scan-controls .scan-status.on { color: var(--accent); }
+.btn.active-auto {
+  background: rgba(61,207,142,0.18);
+  border-color: var(--accent);
+  color: #d8ffe9;
+}
+.btn.ghost {
+  background: transparent;
+}
+
+.notify {
+  position: fixed; inset: 0; z-index: 50;
+  background: rgba(6, 12, 10, 0.62);
+  display: flex; align-items: center; justify-content: center;
+  padding: 24px;
+}
+.notify.hidden { display: none; }
+.notify-card {
+  width: min(440px, 100%);
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  padding: 22px;
+  box-shadow: 0 24px 80px rgba(0,0,0,0.45);
+}
+.notify-card h3 { margin: 0 0 8px; font-size: 1.15rem; }
+.notify-card p { margin: 0 0 18px; color: var(--muted); line-height: 1.5; white-space: pre-wrap; }
+.notify-actions { display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
 
 .view { display: none; }
 .view.active { display: block; }

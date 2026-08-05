@@ -17,6 +17,7 @@ type Finding struct {
 	Source       string     `json:"source"`
 	Path         string     `json:"path"`
 	SizeBytes    int64      `json:"sizeBytes"`
+	Definition   string     `json:"definition"`
 	Detail       string     `json:"detail"`
 	LastActivity *time.Time `json:"lastActivity,omitempty"`
 	DaysIdle     *int       `json:"daysIdle,omitempty"`
@@ -207,6 +208,9 @@ func dirPackages(root, source string, min int64) []Finding {
 }
 
 func withIdle(f Finding, path string) Finding {
+	if f.Definition == "" {
+		f.Definition = Definition(f.Name, f.Source)
+	}
 	if info, err := os.Stat(path); err == nil {
 		t := info.ModTime()
 		f.LastActivity = &t

@@ -161,9 +161,9 @@ func matrix(active Tier) []FeatureRow {
 		{ID: "doctor", Name: "Workstation Doctor", Description: "Prioritized recommendations", Free: false, Pro: true, Team: true},
 		{ID: "ask", Name: "Ask Stoguard", Description: "Local Q&A over scan facts", Free: false, Pro: true, Team: true},
 		{ID: "duplicates", Name: "Duplicate grouping", Description: "Smarter duplicate detection", Free: false, Pro: true, Team: true},
-		{ID: "models", Name: "AI model inventory", Description: "List local model paths from scan", Free: false, Pro: true, Team: true},
-		{ID: "packages", Name: "Package Finder", Description: "Forgotten brew/npm/pipx/CLI installs", Free: false, Pro: true, Team: true},
-		{ID: "agent_tools", Name: "AI Skills & MCP", Description: "MCP configs, skills, idle extensions", Free: false, Pro: true, Team: true},
+		{ID: "models", Name: "AI Cleanup", Description: "Models, skills, MCP, and AI caches in one cleanup view", Free: false, Pro: true, Team: true},
+		{ID: "packages", Name: "Package Finder", Description: "Installed packages with definitions and disk space", Free: false, Pro: true, Team: true},
+		{ID: "agent_tools", Name: "AI Skills & MCP", Description: "Included in AI Cleanup (MCP, skills, extensions)", Free: false, Pro: true, Team: true},
 		{ID: "fleet_export", Name: "Fleet JSON export", Description: "Export this machine for IT", Free: false, Pro: true, Team: true},
 		{ID: "fleet_admin", Name: "Team fleet console", Description: "Ingest & aggregate fleet reports", Free: false, Pro: false, Team: true},
 	}

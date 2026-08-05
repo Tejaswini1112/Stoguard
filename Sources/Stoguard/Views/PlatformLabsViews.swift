@@ -227,16 +227,22 @@ struct PackageFinderView: View {
     var body: some View {
         labList(
             title: "Package Finder",
-            subtitle: "Forgotten Homebrew, npm, pipx, and CLI installs still on disk.",
+            subtitle: "Every sizable install with a definition and how much disk it uses — so you know what you installed and why.",
             loading: model.isLoadingPackages,
             reload: { model.loadPackageFinder() }
         ) {
             if model.packagesLoaded && model.packageFindings.isEmpty {
                 Text("No sizable installed packages found.").foregroundStyle(Theme.secondaryText)
             }
+            if model.packagesLoaded && !model.packageFindings.isEmpty {
+                let total = model.packageFindings.reduce(Int64(0)) { $0 + $1.sizeBytes }
+                Text("\(model.packageFindings.count) packages · \(ByteText.string(total)) total")
+                    .font(.callout)
+                    .foregroundStyle(Theme.secondaryText)
+            }
             ForEach(model.packageFindings) { p in
                 VStack(alignment: .leading, spacing: 6) {
-                    HStack {
+                    HStack(alignment: .firstTextBaseline) {
                         Text(p.name).font(.system(size: 13, weight: .semibold))
                         Text(p.source)
                             .font(.system(size: 9, weight: .bold))
@@ -244,10 +250,14 @@ struct PackageFinderView: View {
                             .padding(.horizontal, 6).padding(.vertical, 2)
                             .background(Theme.navy.opacity(0.1), in: Capsule())
                         Spacer()
-                        Text(p.sizeText).font(.caption.monospacedDigit())
+                        Text(p.sizeText)
+                            .font(.system(size: 13, weight: .semibold).monospacedDigit())
                     }
+                    Text(p.definition)
+                        .font(.system(size: 12))
+                        .foregroundStyle(Theme.primaryText)
                     Text(p.path).font(.system(size: 10).monospaced()).foregroundStyle(Theme.secondaryText).lineLimit(1)
-                    Text(p.detail).font(.caption).foregroundStyle(Theme.secondaryText)
+                    Text(p.detail).font(.caption).foregroundStyle(Theme.tertiaryText)
                     if let days = p.daysIdle, days >= 45 {
                         Text("Idle ~\(days) days — likely unused")
                             .font(.caption.weight(.semibold))

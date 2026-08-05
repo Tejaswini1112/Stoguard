@@ -6,7 +6,7 @@
 
 <p align="center">
   <strong>AI developer workstation manager for macOS, Windows, and Linux.</strong><br/>
-  Scan developer caches, reclaim disk safely, diagnose slow machines — Trash-only, zero telemetry.
+  Find AI models, forgotten packages (with definitions + disk use), and caches — clean safely to Trash, zero telemetry.
 </p>
 
 <p align="center">
@@ -25,7 +25,7 @@
 
 ---
 
-Stoguard finds what’s eating a developer workstation — Docker, package caches, IDE data, local AI models — explains each folder in plain English, and moves cleanup to **Trash** (never silent deletes).
+Stoguard finds what’s eating a developer workstation — Docker, package caches, IDE data, local AI models — explains each folder **and each installed package** in plain English, groups advanced AI clutter into **AI Cleanup** for immediate safe reclaim, and moves cleanup to **Trash** (never silent deletes).
 
 ## What’s included
 
@@ -38,6 +38,8 @@ Stoguard finds what’s eating a developer workstation — Docker, package cache
 
 ### Core capabilities
 - Parallel rule-based scan with adaptive skips + fingerprint cache  
+- **AI Cleanup** — models, skills/MCP, and AI caches in one place with one-tap safe clean  
+- **Package Finder** — Homebrew / npm / pipx / CLI installs with definition + size  
 - Symlink-safe Trash / recycle staging  
 - Workstation Doctor, storage timeline, duplicates, Ask AI (Ollama optional)  
 - Free / Pro / Team feature tiers (local/dev builds default to **Team** for full unlock)  

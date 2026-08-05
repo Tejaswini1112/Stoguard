@@ -8,6 +8,7 @@ enum AppSection: String, CaseIterable, Identifiable {
     case pulse = "System Pulse"
     case envDoctor = "Env Doctor"
     case buildTrends = "Build Trends"
+    case aiCleanup = "AI Cleanup"
     case aiModels = "AI Models"
     case duplicates = "Duplicates"
     case packageFinder = "Package Finder"
@@ -34,7 +35,7 @@ enum AppSection: String, CaseIterable, Identifiable {
     var ruleCategory: String? {
         switch self {
         case .overview, .doctor, .ask, .pulse, .envDoctor, .buildTrends,
-             .aiModels, .duplicates, .packageFinder, .agentTools, .gitRepos, .codebase, .rulesPlugins, .fleet,
+             .aiCleanup, .aiModels, .duplicates, .packageFinder, .agentTools, .gitRepos, .codebase, .rulesPlugins, .fleet,
              .installedApps, .about, .trash:
             return nil
         case .heavyFolders: return "Unknown heavy folders"
@@ -50,6 +51,7 @@ enum AppSection: String, CaseIterable, Identifiable {
         case .pulse: return "heart.text.square.fill"
         case .envDoctor: return "wrench.and.screwdriver.fill"
         case .buildTrends: return "chart.line.uptrend.xyaxis"
+        case .aiCleanup: return "sparkles"
         case .aiModels: return "cpu.fill"
         case .duplicates: return "square.on.square"
         case .packageFinder: return "shippingbox.and.arrow.backward.fill"
@@ -80,9 +82,10 @@ enum AppSection: String, CaseIterable, Identifiable {
         case .pulse: return "CPU, memory, and disk pressure — why the machine feels slow."
         case .envDoctor: return "Brew, Node, Python, Java, Android SDK health checks."
         case .buildTrends: return "DerivedData / Gradle cache size over time."
+        case .aiCleanup: return "Models, skills, MCP, and AI caches — one place for immediate AI cleanup."
         case .aiModels: return "Ollama, Hugging Face, LM Studio, and other local model stores."
         case .duplicates: return "Multiple Node/Python/Rust/simulator/model copies."
-        case .packageFinder: return "Forgotten Homebrew, npm, pipx, and CLI packages still on disk."
+        case .packageFinder: return "Each installed package with a plain-English definition and disk space used."
         case .agentTools: return "MCP servers, AI skills, and idle editor extensions."
         case .gitRepos: return "Large .git folders, stashes, and branch sprawl."
         case .codebase: return "Point at a repo — heavy folders and binaries."
@@ -111,7 +114,8 @@ enum AppSection: String, CaseIterable, Identifiable {
     }
 
     static var optimizeTools: [AppSection] {
-        [.aiModels, .duplicates, .packageFinder, .agentTools, .gitRepos, .codebase]
+        // AI Models + Skills/MCP roll up into AI Cleanup for immediate cleanup.
+        [.aiCleanup, .duplicates, .packageFinder, .gitRepos, .codebase]
     }
 
     static var platformTools: [AppSection] {
@@ -149,6 +153,7 @@ enum AppSection: String, CaseIterable, Identifiable {
         case .pulse: return "Pulse"
         case .envDoctor: return "Env"
         case .buildTrends: return "Builds"
+        case .aiCleanup: return "AI Cleanup"
         case .aiModels: return "Models"
         case .duplicates: return "Dupes"
         case .packageFinder: return "Pkg Finder"

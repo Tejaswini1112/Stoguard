@@ -7,6 +7,8 @@ struct PackageFinding: Identifiable, Hashable, Sendable {
     let source: String // brew, npm, pipx, pip, cargo, bin, app
     let path: String
     let sizeBytes: Int64
+    /// What this package is / why someone installs it.
+    let definition: String
     let detail: String
     var lastActivity: Date? = nil
 
@@ -19,8 +21,9 @@ struct PackageFinding: Identifiable, Hashable, Sendable {
 
 enum PackageFinder {
     static func scan() -> [PackageFinding] {
+        let brewDesc = loadBrewDescriptions()
         var out: [PackageFinding] = []
-        out += brewPackages()
+        out += brewPackages(descriptions: brewDesc)
         out += npmGlobals()
         out += pipxPackages()
         out += cargoBins()
@@ -32,9 +35,50 @@ enum PackageFinder {
         return out
     }
 
+    private static func make(
+        id: String, name: String, source: String, path: String,
+        sizeBytes: Int64, detail: String, lastActivity: Date?,
+        brewDesc: [String: String] = [:]
+    ) -> PackageFinding {
+        let catalog = PackageCatalog.definition(for: name, source: source)
+        let fromBrew = brewDesc[name.lowercased()]
+        let definition = (fromBrew?.isEmpty == false) ? fromBrew! : catalog
+        return PackageFinding(
+            id: id, name: name, source: source, path: path,
+            sizeBytes: sizeBytes, definition: definition, detail: detail,
+            lastActivity: lastActivity
+        )
+    }
+
+    private static func loadBrewDescriptions() -> [String: String] {
+        let brew = ["/opt/homebrew/bin/brew", "/usr/local/bin/brew"].first {
+            FileManager.default.isExecutableFile(atPath: $0)
+        }
+        guard let brew else { return [:] }
+        let proc = Process()
+        proc.executableURL = URL(fileURLWithPath: brew)
+        proc.arguments = ["info", "--json=v2", "--installed"]
+        let out = Pipe()
+        proc.standardOutput = out
+        proc.standardError = Pipe()
+        do { try proc.run() } catch { return [:] }
+        let data = out.fileHandleForReading.readDataToEndOfFile()
+        proc.waitUntilExit()
+        guard let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let formulae = json["formulae"] as? [[String: Any]]
+        else { return [:] }
+        var map: [String: String] = [:]
+        for f in formulae {
+            guard let name = f["name"] as? String else { continue }
+            let desc = (f["desc"] as? String)?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+            if !desc.isEmpty { map[name.lowercased()] = desc }
+        }
+        return map
+    }
+
     // MARK: - Homebrew
 
-    private static func brewPackages() -> [PackageFinding] {
+    private static func brewPackages(descriptions: [String: String]) -> [PackageFinding] {
         let cellarCandidates = [
             "/opt/homebrew/Cellar",
             "/usr/local/Cellar",
@@ -54,14 +98,15 @@ enum PackageFinder {
                     guard fm.fileExists(atPath: path, isDirectory: &isDir), isDir.boolValue else { continue }
                     let size = Shell.size(path)
                     guard size > 1_000_000 else { continue } // skip tiny meta
-                    findings.append(PackageFinding(
+                    findings.append(make(
                         id: "brew-\(formula)-\(ver)",
                         name: formula,
                         source: "Homebrew",
                         path: path,
                         sizeBytes: size,
-                        detail: "Cellar \(ver). Uninstall with `brew uninstall \(formula)` if unused.",
-                        lastActivity: PathActivity.lastActivity(at: path)
+                        detail: "Cellar \(ver) · \(ByteText.string(size)). Uninstall: brew uninstall \(formula)",
+                        lastActivity: PathActivity.lastActivity(at: path),
+                        brewDesc: descriptions
                     ))
                 }
             }
@@ -87,14 +132,18 @@ enum PackageFinder {
                 let path = (root as NSString).appendingPathComponent(name)
                 let size = Shell.size(path)
                 guard size > 500_000 else { continue }
-                findings.append(PackageFinding(
+                let pkgDesc = readNpmDescription(at: path)
+                var brewLike: [String: String] = [:]
+                if let pkgDesc, !pkgDesc.isEmpty { brewLike[name.lowercased()] = pkgDesc }
+                findings.append(make(
                     id: "npm-\(name)-\(path.hashValue)",
                     name: name,
                     source: "npm global",
                     path: path,
                     sizeBytes: size,
-                    detail: "Global npm package. Remove with `npm uninstall -g \(name)` if you no longer use it.",
-                    lastActivity: PathActivity.lastActivity(at: path)
+                    detail: "\(ByteText.string(size)) on disk. Remove: npm uninstall -g \(name)",
+                    lastActivity: PathActivity.lastActivity(at: path),
+                    brewDesc: brewLike
                 ))
             }
         }
@@ -112,16 +161,26 @@ enum PackageFinder {
             let path = (root as NSString).appendingPathComponent(name)
             let size = Shell.size(path)
             guard size > 1_000_000 else { return nil }
-            return PackageFinding(
+            return make(
                 id: "pipx-\(name)",
                 name: name,
                 source: "pipx",
                 path: path,
                 sizeBytes: size,
-                detail: "pipx virtualenv. Remove with `pipx uninstall \(name)` if unused (e.g. forgotten CLI tools).",
+                detail: "\(ByteText.string(size)) pipx env. Remove: pipx uninstall \(name)",
                 lastActivity: PathActivity.lastActivity(at: path)
             )
         }
+    }
+
+    private static func readNpmDescription(at path: String) -> String? {
+        let pkg = (path as NSString).appendingPathComponent("package.json")
+        guard let data = try? Data(contentsOf: URL(fileURLWithPath: pkg)),
+              let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let desc = json["description"] as? String
+        else { return nil }
+        let t = desc.trimmingCharacters(in: .whitespacesAndNewlines)
+        return t.isEmpty ? nil : t
     }
 
     // MARK: - cargo bins
@@ -155,13 +214,13 @@ enum PackageFinder {
             if type == .typeSymbolicLink { continue }
             let size = (attrs[.size] as? NSNumber)?.int64Value ?? 0
             guard size > 500_000 else { continue }
-            out.append(PackageFinding(
+            out.append(make(
                 id: "bin-\(source)-\(name)",
                 name: name,
                 source: source,
                 path: path,
                 sizeBytes: size,
-                detail: "\(detailPrefix). Confirm you still use `\(name)` before removing.",
+                detail: "\(ByteText.string(size)) · \(detailPrefix). Confirm you still use `\(name)` before removing.",
                 lastActivity: PathActivity.lastActivity(at: path)
             ))
         }

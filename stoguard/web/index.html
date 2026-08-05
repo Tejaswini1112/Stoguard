@@ -25,9 +25,8 @@
         <button class="nav" data-view="doctor" data-feature="doctor">Workstation Doctor <span class="tier-badge">Pro</span></button>
         <button class="nav" data-view="ask" data-feature="ask">Ask Stoguard <span class="tier-badge">Pro</span></button>
         <button class="nav" data-view="duplicates" data-feature="duplicates">Duplicates <span class="tier-badge">Pro</span></button>
-        <button class="nav" data-view="models" data-feature="models">AI Models <span class="tier-badge">Pro</span></button>
+        <button class="nav" data-view="aicleanup" data-feature="models">AI Cleanup <span class="tier-badge">Pro</span></button>
         <button class="nav" data-view="packages" data-feature="packages">Package Finder <span class="tier-badge">Pro</span></button>
-        <button class="nav" data-view="agenttools" data-feature="agent_tools">Skills &amp; MCP <span class="tier-badge">Pro</span></button>
         <button class="nav" data-view="history">Storage Timeline</button>
         <button class="nav" data-view="items">All Findings</button>
         <button class="nav" data-view="fleet" data-feature="fleet_admin">Fleet <span class="tier-badge team">Team</span></button>
@@ -43,7 +42,7 @@
       <header class="top">
         <div>
           <h1 id="view-title">Overview</h1>
-          <p id="view-sub">AI developer workstation manager</p>
+          <p id="view-sub">Find AI models, packages, and caches — with definitions and safe cleanup</p>
         </div>
         <div class="stats" id="hero-stats"></div>
       </header>
@@ -60,9 +59,8 @@
         </div>
       </section>
       <section id="view-duplicates" class="view"></section>
-      <section id="view-models" class="view"></section>
+      <section id="view-aicleanup" class="view"></section>
       <section id="view-packages" class="view"></section>
-      <section id="view-agenttools" class="view"></section>
       <section id="view-history" class="view"></section>
       <section id="view-items" class="view"></section>
       <section id="view-fleet" class="view"></section>
@@ -70,6 +68,13 @@
     </main>
   </div>
   <div id="toast" class="toast hidden"></div>
+  <div id="notify" class="notify hidden" role="dialog" aria-modal="true" aria-labelledby="notify-title">
+    <div class="notify-card">
+      <h3 id="notify-title">Stoguard</h3>
+      <p id="notify-body"></p>
+      <div class="notify-actions" id="notify-actions"></div>
+    </div>
+  </div>
   <script src="app.js"></script>
 </body>
 </html>

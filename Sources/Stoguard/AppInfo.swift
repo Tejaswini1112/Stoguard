@@ -27,7 +27,7 @@ struct ToolComparisonRow: Identifiable {
 
 enum AppInfo {
     static let name = "Stoguard"
-    static let tagline = "Your AI developer workstation manager."
+    static let tagline = "Find what’s eating your developer machine — AI models, packages, and caches — with plain-English definitions and one-tap safe cleanup."
     static let author = "Stoguard"
     static let copyrightYear = "2026"
     static let licenseName = "Proprietary · All Rights Reserved"
@@ -112,8 +112,15 @@ enum AppInfo {
         ToolComparisonRow(
             id: "ai",
             icon: "sparkles",
-            title: "Ollama & Hugging Face weights",
-            detail: "Local LLM model folders — often 10–50 GB each.",
+            title: "AI Cleanup (models · skills · MCP)",
+            detail: "One place for local LLM stores, agent skills, MCP servers, and AI caches.",
+            vacs: .strong, purge: .none, macOS: .none, cleanMyMac: .none
+        ),
+        ToolComparisonRow(
+            id: "pkgfinder",
+            icon: "shippingbox.and.arrow.backward.fill",
+            title: "Package Finder with definitions",
+            detail: "Homebrew, npm, pipx, and CLI installs — each with what it is and disk size.",
             vacs: .strong, purge: .none, macOS: .none, cleanMyMac: .none
         ),
         ToolComparisonRow(
@@ -162,8 +169,10 @@ enum AppInfo {
          "Puppeteer, Playwright, and Selenium browser downloads."),
         ("shippingbox.fill", "Containers & Kubernetes",
          "Docker, Minikube, and Colima — with the correct CLI command, not risky folder deletes."),
-        ("sparkles", "AI tools & models",
-         "Hugging Face weights, Ollama models, and AI IDE working data."),
+        ("sparkles", "AI Cleanup",
+         "Models, skills, MCP, and AI app caches — one place for immediate safe reclaim."),
+        ("shippingbox.and.arrow.backward.fill", "Package Finder",
+         "Installed brew/npm/pipx/CLI packages with a definition and how much space each uses."),
         ("bubble.left.and.bubble.right.fill", "Everyday apps",
          "Zoom, Discord, Slack, Perplexity, Spotify — temp files with plain-English notes."),
         ("externaldrive.fill", "System caches & logs",

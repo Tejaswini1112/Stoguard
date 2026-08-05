@@ -17,6 +17,7 @@ struct SectionDetailView: View {
                 case .pulse: SystemPulseView()
                 case .envDoctor: EnvDoctorView()
                 case .buildTrends: BuildTrendsView()
+                case .aiCleanup: AICleanupView()
                 case .aiModels: AIModelsView()
                 case .duplicates: DuplicatesView()
                 case .packageFinder: PackageFinderView()

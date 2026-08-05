@@ -1,3 +1,6 @@
+const AUTO_INTERVAL_MS = 30 * 60 * 1000; // 30 minutes
+const AUTO_KEY = "stoguard.scanAutomation";
+
 const state = {
   status: null,
   tier: null,
@@ -10,16 +13,18 @@ const state = {
   history: [],
   fleet: [],
   view: "overview",
+  scanning: false,
+  scanAutomation: localStorage.getItem(AUTO_KEY) === "1",
+  autoTimer: null,
 };
 
 const titles = {
-  overview: ["Overview", "AI developer workstation manager"],
+  overview: ["Overview", "Find AI models, packages, and caches — with definitions and safe cleanup"],
   doctor: ["Workstation Doctor", "Prioritized cleanup recommendations"],
   ask: ["Ask Stoguard", "Answers grounded in your last scan"],
   duplicates: ["Duplicates", "Overlapping caches and installs"],
-  models: ["AI Models", "Local model paths from scan"],
-  packages: ["Package Finder", "Forgotten brew / npm / pipx / CLI installs"],
-  agenttools: ["Skills & MCP", "MCP configs, skill packs, idle extensions"],
+  aicleanup: ["AI Cleanup", "Models, skills, MCP, and AI caches — clean safe items immediately"],
+  packages: ["Package Finder", "Each install with a definition and how much disk it uses"],
   history: ["Storage Timeline", "Reclaimable safe space over time"],
   items: ["All Findings", "Everything the scanner measured"],
   fleet: ["Fleet", "Team machine rollup"],
@@ -45,7 +50,66 @@ function toast(msg) {
   el.textContent = msg;
   el.classList.remove("hidden");
   clearTimeout(toast._t);
-  toast._t = setTimeout(() => el.classList.add("hidden"), 2800);
+  toast._t = setTimeout(() => el.classList.add("hidden"), 3200);
+}
+
+function notifyOS(title, body) {
+  try {
+    if (!("Notification" in window)) return;
+    if (Notification.permission === "granted") {
+      new Notification(title, { body, silent: false });
+    }
+  } catch (_) {}
+}
+
+function showNotify({ title, body, actions }) {
+  const root = $("#notify");
+  $("#notify-title").textContent = title || "Stoguard";
+  $("#notify-body").textContent = body || "";
+  const box = $("#notify-actions");
+  box.innerHTML = "";
+  (actions || [{ label: "OK", primary: true }]).forEach((a) => {
+    const btn = document.createElement("button");
+    btn.className = `btn ${a.primary ? "primary" : a.danger ? "danger" : ""}`;
+    btn.textContent = a.label;
+    btn.onclick = async () => {
+      root.classList.add("hidden");
+      if (a.onClick) await a.onClick();
+    };
+    box.appendChild(btn);
+  });
+  root.classList.remove("hidden");
+}
+
+function hideNotify() {
+  $("#notify")?.classList.add("hidden");
+}
+
+function clearScanResults() {
+  state.scan = null;
+  state.doctor = null;
+  state.duplicates = [];
+  state.models = [];
+  state.packages = [];
+  state.agentTools = [];
+  toast("Scan results cleared — run Scan again when ready");
+  setView("overview");
+  render();
+}
+
+function setScanAutomation(on) {
+  state.scanAutomation = !!on;
+  localStorage.setItem(AUTO_KEY, on ? "1" : "0");
+  if (state.autoTimer) {
+    clearInterval(state.autoTimer);
+    state.autoTimer = null;
+  }
+  if (on) {
+    state.autoTimer = setInterval(() => {
+      if (!state.scanning) runScan({ source: "automation" });
+    }, AUTO_INTERVAL_MS);
+  }
+  renderHero();
 }
 
 async function api(path, opts = {}) {
@@ -118,9 +182,8 @@ function setView(name) {
   $("#view-title").textContent = t;
   $("#view-sub").textContent = s;
   if (name === "fleet") loadFleet();
-  if (name === "models" && state.scan && !state.models.length) loadModels();
+  if (name === "aicleanup") loadAICleanup();
   if (name === "packages") loadPackages();
-  if (name === "agenttools") loadAgentTools();
   if (name === "account") renderAccount();
   render();
 }
@@ -169,21 +232,49 @@ function itemRow(it, { showChildren = true } = {}) {
 function renderHero() {
   const s = state.scan;
   const box = $("#hero-stats");
-  if (!s) {
-    box.innerHTML = `<div class="stat"><b>—</b><span>Scan first</span></div>`;
-    return;
-  }
-  box.innerHTML = `
+  const autoOn = state.scanAutomation;
+  const scanning = state.scanning;
+  const primaryLabel = scanning ? "Scanning…" : s ? "Scan again" : "Scan now";
+  const autoLabel = autoOn ? "Automation on" : "Scan automation";
+  const statusText = scanning
+    ? "Scan in progress…"
+    : autoOn
+      ? "Automation on · re-scans every 30 min"
+      : s
+        ? "Ready · scan again anytime"
+        : "No scan yet — start here";
+
+  const stats = s
+    ? `
     <div class="stat"><b>${fmtBytes(s.safeBytes)}</b><span>Safe</span></div>
     <div class="stat"><b>${fmtBytes(s.checkBytes)}</b><span>Review</span></div>
     <div class="stat"><b>${fmtBytes(s.freeBytes)}</b><span>Free disk</span></div>
-    <div class="stat"><b>${s.items.length}</b><span>Findings</span></div>`;
+    <div class="stat"><b>${s.items.length}</b><span>Findings</span></div>`
+    : `<div class="stat"><b>—</b><span>No results yet</span></div>`;
+
+  box.innerHTML = `
+    ${stats}
+    <div class="scan-controls">
+      <div class="scan-row">
+        <button class="btn primary" id="btn-scan-top" ${scanning ? "disabled" : ""}>${primaryLabel}</button>
+        <button class="btn ${autoOn ? "active-auto" : "ghost"}" id="btn-scan-auto" ${scanning ? "disabled" : ""}>${autoLabel}</button>
+      </div>
+      <div class="scan-status ${autoOn ? "on" : ""}" id="scan-status">${statusText}</div>
+    </div>`;
+
+  const top = $("#btn-scan-top");
+  if (top) top.onclick = () => runScan({ source: "manual" });
+  const autoBtn = $("#btn-scan-auto");
+  if (autoBtn) autoBtn.onclick = () => toggleScanAutomation();
 }
 
 function renderOverview() {
   const el = $("#view-overview");
   if (!state.scan) {
-    el.innerHTML = `<div class="empty">Press <strong>Scan workstation</strong> to analyze developer caches on this machine.</div>`;
+    el.innerHTML = `<div class="empty">
+      Use <strong>Scan now</strong> at the top (or <strong>Scan workstation</strong> in the sidebar) to analyze developer caches on this machine.<br/><br/>
+      Turn on <strong>Scan automation</strong> to be notified, run a scan, and get prompted to view or clear results when it finishes.
+    </div>`;
     return;
   }
   const s = state.scan;
@@ -244,39 +335,19 @@ function renderPackages() {
     el.innerHTML = `<div class="empty">No sizable packages found yet — open this tab to scan installs.</div>`;
     return;
   }
-  el.innerHTML = `<div class="list">${list.map((p) => `
+  const total = list.reduce((a, p) => a + (p.sizeBytes || 0), 0);
+  el.innerHTML = `
+    <p class="hint" style="margin-bottom:12px">${list.length} packages · ${fmtBytes(total)} — each row shows what it is and how much space it uses.</p>
+    <div class="list">${list.map((p) => `
     <div class="row">
       <div>
         <div class="name">${escapeHtml(p.name)} <span class="badge check">${escapeHtml(p.source)}</span></div>
+        <div class="meta" style="color:var(--text, inherit);font-weight:500">${escapeHtml(p.definition || "Installed developer package.")}</div>
         <div class="meta">${escapeHtml(p.path)}</div>
         <div class="meta">${escapeHtml(p.detail || "")}${p.daysIdle != null && p.daysIdle >= 45 ? ` · idle ${p.daysIdle}d` : ""}</div>
       </div>
       <div class="size">${fmtBytes(p.sizeBytes)}</div>
       <button class="btn small" data-reveal="${escapeAttr(p.path)}">Reveal</button>
-    </div>`).join("")}</div>`;
-}
-
-function renderAgentTools() {
-  const el = $("#view-agenttools");
-  if (!el) return;
-  if (!allows("agent_tools")) {
-    el.innerHTML = `<div class="empty">AI Skills & MCP is a Pro feature.</div>`;
-    return;
-  }
-  const list = state.agentTools || [];
-  if (!list.length) {
-    el.innerHTML = `<div class="empty">No MCP configs, skills, or large extensions found.</div>`;
-    return;
-  }
-  el.innerHTML = `<div class="list">${list.map((f) => `
-    <div class="row">
-      <div>
-        <div class="name">${escapeHtml(f.name)} <span class="badge ${f.isStale ? "never" : "check"}">${escapeHtml(f.kind)}</span></div>
-        <div class="meta">${escapeHtml(f.path)}</div>
-        <div class="meta">${escapeHtml(f.detail || "")}</div>
-      </div>
-      <div class="size">${fmtBytes(f.sizeBytes)}</div>
-      <button class="btn small" data-reveal="${escapeAttr(f.path)}">Reveal</button>
     </div>`).join("")}</div>`;
 }
 
@@ -343,34 +414,59 @@ function renderDuplicates() {
     .join("")}</div>`;
 }
 
-function renderModels() {
-  const el = $("#view-models");
-  if (!allows("models")) {
-    el.innerHTML = `<div class="empty">AI model inventory requires <strong>Pro</strong>.</div>`;
+function renderAICleanup() {
+  const el = $("#view-aicleanup");
+  if (!el) return;
+  if (!allows("models") && !allows("agent_tools")) {
+    el.innerHTML = `<div class="empty">AI Cleanup requires <strong>Pro</strong>.</div>`;
     return;
   }
-  if (!state.scan) {
-    el.innerHTML = `<div class="empty">Scan first to list model paths.</div>`;
-    return;
-  }
-  const list = state.models || [];
-  if (!list.length) {
-    el.innerHTML = `<div class="empty">No AI model stores matched this scan.</div>`;
-    return;
-  }
-  el.innerHTML = `<div class="list">${list
-    .map(
-      (m) => `<div class="row">
-      <div>
-        <div class="name">${escapeHtml(m.name)} <span class="badge command">${escapeHtml(m.provider)}</span></div>
-        <div class="meta">${escapeHtml(m.path)}</div>
-        <div class="meta">${escapeHtml(m.note || m.category)}</div>
+  const models = state.models || [];
+  const tools = state.agentTools || [];
+  const aiItems = (state.scan?.items || []).filter(
+    (it) => /ai|ollama|huggingface|llm|model|claude|chatgpt|cursor/i.test(`${it.category || ""} ${it.name || ""}`)
+  );
+  const safeAI = aiItems.filter((it) => it.safety === "safe");
+  const safeBytes = safeAI.reduce((a, it) => a + (it.sizeBytes || 0), 0);
+
+  const modelRows = models.length
+    ? models.map((m) => `<div class="row">
+        <div>
+          <div class="name">${escapeHtml(m.name)} <span class="badge command">${escapeHtml(m.provider || "model")}</span></div>
+          <div class="meta">${escapeHtml(m.path)}</div>
+          <div class="meta">${escapeHtml(m.note || m.category || "Local model store")}</div>
+        </div>
+        <div class="size">${fmtBytes(m.sizeBytes)}</div>
+        <div class="actions"><button class="btn small" data-reveal="${escapeAttr(m.path)}">Reveal</button></div>
+      </div>`).join("")
+    : `<div class="empty">No AI model stores found yet — run a scan.</div>`;
+
+  const toolRows = tools.length
+    ? tools.map((f) => `<div class="row">
+        <div>
+          <div class="name">${escapeHtml(f.name)} <span class="badge ${f.isStale ? "never" : "check"}">${escapeHtml(f.kind)}</span></div>
+          <div class="meta">${escapeHtml(f.path)}</div>
+          <div class="meta">${escapeHtml(f.detail || "")}</div>
+        </div>
+        <div class="size">${fmtBytes(f.sizeBytes)}</div>
+        <button class="btn small" data-reveal="${escapeAttr(f.path)}">Reveal</button>
+      </div>`).join("")
+    : `<div class="empty">No MCP configs, skills, or large AI extensions found.</div>`;
+
+  const cacheRows = aiItems.length
+    ? aiItems.slice(0, 40).map((it) => itemRow(it, { showChildren: false })).join("")
+    : `<div class="empty">No AI app caches in the last scan.</div>`;
+
+  el.innerHTML = `
+    <div class="grid">
+      <div class="card wide">
+        <h3>Immediate AI cleanup</h3>
+        <p>Models, skills/MCP, and AI caches in one place. Safe AI caches: <strong>${fmtBytes(safeBytes)}</strong> (${safeAI.length} items).</p>
       </div>
-      <div class="size">${fmtBytes(m.sizeBytes)}</div>
-      <div class="actions"><button class="btn small" data-reveal="${escapeAttr(m.path)}">Reveal</button></div>
-    </div>`
-    )
-    .join("")}</div>`;
+      <div class="card wide"><h3>Local AI models</h3><div class="list" style="margin-top:12px">${modelRows}</div></div>
+      <div class="card wide"><h3>Skills &amp; MCP</h3><div class="list" style="margin-top:12px">${toolRows}</div></div>
+      <div class="card wide"><h3>AI app caches</h3><div class="list" style="margin-top:12px">${cacheRows}</div></div>
+    </div>`;
 }
 
 function renderHistory() {
@@ -520,7 +616,8 @@ function render() {
   renderOverview();
   renderDoctor();
   renderDuplicates();
-  renderModels();
+  renderAICleanup();
+  renderPackages();
   renderHistory();
   renderItems();
   renderFleet();
@@ -619,29 +716,73 @@ async function loadPackages() {
   bindActions();
 }
 
-async function loadAgentTools() {
-  if (!allows("agent_tools")) { renderAgentTools(); bindActions(); return; }
-  try { state.agentTools = await api("/api/agent-tools"); }
-  catch (e) { state.agentTools = []; toast(e.message); }
-  renderAgentTools();
-  bindActions();
-}
-
-async function loadModels() {
-  if (!allows("models") || !state.scan) return;
-  try {
-    state.models = await api("/api/models");
-  } catch {
-    state.models = [];
+async function loadAICleanup() {
+  if (allows("models")) {
+    try { state.models = await api("/api/models"); }
+    catch { state.models = []; }
   }
-  renderModels();
+  if (allows("agent_tools")) {
+    try { state.agentTools = await api("/api/agent-tools"); }
+    catch { state.agentTools = []; }
+  }
+  renderAICleanup();
   bindActions();
 }
 
-async function runScan() {
+async function toggleScanAutomation() {
+  if (state.scanAutomation) {
+    setScanAutomation(false);
+    toast("Scan automation turned off");
+    showNotify({
+      title: "Scan automation off",
+      body: "Automatic re-scans are paused. You can still use Scan again anytime.",
+      actions: [{ label: "OK", primary: true }],
+    });
+    return;
+  }
+
+  if ("Notification" in window && Notification.permission === "default") {
+    try { await Notification.requestPermission(); } catch (_) {}
+  }
+
+  setScanAutomation(true);
+  notifyOS("Stoguard", "Scan automation started — beginning scan");
+  showNotify({
+    title: "Scan automation started",
+    body: "You’ll be notified when this scan finishes.\n\nStarting now, then again every 30 minutes while this page stays open.",
+    actions: [
+      { label: "OK", primary: true },
+      {
+        label: "Cancel automation",
+        onClick: () => {
+          setScanAutomation(false);
+          toast("Scan automation cancelled");
+        },
+      },
+    ],
+  });
+  // Begin immediately after the notify is shown.
+  runScan({ source: "automation" });
+}
+
+async function runScan({ source = "manual" } = {}) {
+  if (state.scanning) return;
+  state.scanning = true;
+  const fromAuto = source === "automation";
+  if (fromAuto) {
+    toast("Automated scan starting…");
+    notifyOS("Stoguard", "Automated scan starting");
+  } else {
+    toast(state.scan ? "Scanning again…" : "Scan starting…");
+  }
+
   const btn = $("#btn-scan");
-  btn.disabled = true;
-  btn.textContent = "Scanning…";
+  if (btn) {
+    btn.disabled = true;
+    btn.textContent = "Scanning…";
+  }
+  renderHero();
+
   try {
     const data = await api("/api/scan", { method: "POST" });
     state.scan = data.scan;
@@ -665,13 +806,47 @@ async function runScan() {
       }
     }
     state.history = await api("/api/history");
-    toast(`Found ${state.scan.items.length} items · ${fmtBytes(state.scan.safeBytes)} safe`);
+
+    const summary = `Found ${state.scan.items.length} findings · ${fmtBytes(state.scan.safeBytes)} safe to clean · ${fmtBytes(state.scan.checkBytes)} to review.`;
+    toast(summary);
+    notifyOS("Stoguard — scan complete", summary);
     render();
+
+    if (fromAuto || state.scanAutomation) {
+      showNotify({
+        title: "Scan complete",
+        body: `${summary}\n\nWould you like to view the results, or clear them and start fresh?`,
+        actions: [
+          {
+            label: "View results",
+            primary: true,
+            onClick: () => setView("overview"),
+          },
+          {
+            label: "Clear results",
+            danger: true,
+            onClick: () => clearScanResults(),
+          },
+          { label: "Dismiss" },
+        ],
+      });
+    }
   } catch (e) {
     toast(e.message);
+    if (fromAuto) {
+      showNotify({
+        title: "Automated scan failed",
+        body: e.message || "Something went wrong during the scan.",
+        actions: [{ label: "OK", primary: true }],
+      });
+    }
   } finally {
-    btn.disabled = false;
-    btn.textContent = "Scan workstation";
+    state.scanning = false;
+    if (btn) {
+      btn.disabled = false;
+      btn.textContent = "Scan workstation";
+    }
+    renderHero();
   }
 }
 
@@ -679,7 +854,13 @@ async function init() {
   document.querySelectorAll(".nav").forEach((b) => {
     b.onclick = () => setView(b.dataset.view);
   });
-  $("#btn-scan").onclick = runScan;
+  $("#btn-scan").onclick = () => runScan({ source: "manual" });
+  $("#notify").addEventListener("click", (e) => {
+    if (e.target === $("#notify")) hideNotify();
+  });
+  if (state.scanAutomation) {
+    setScanAutomation(true);
+  }
   $("#chat-form").onsubmit = async (e) => {
     e.preventDefault();
     const input = $("#chat-input");
