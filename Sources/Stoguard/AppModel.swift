@@ -90,6 +90,14 @@ final class AppModel: ObservableObject {
     @Published var fleetStatus: String?
     @Published var useOllamaChat: Bool = UserDefaults.standard.bool(forKey: "stoguard.useOllamaChat")
     @Published var monitorAlert: String?
+    @Published var healthReport: HealthReport?
+    @Published var predictiveInsights: [PredictiveInsight] = []
+    @Published var proactiveAlerts: [ProactiveAlert] = []
+    @Published var preferenceMemory = PreferenceMemory.load()
+    @Published var automation = AutomationStore.load()
+    @Published var cloudBenchmarks: [CloudBenchmark] = []
+    @Published var repoInsights: [RepoInsight] = []
+    @Published var repoInsightTotal: Int64 = 0
 
     /// Shown before any trash operation — user must confirm every time.
     @Published var cleanPrompt: CleanPrompt?
@@ -312,18 +320,26 @@ final class AppModel: ObservableObject {
     }
 
     func selectSection(_ section: AppSection) {
-        guard selectedSection != section else { return }
+        // Both sidebar entries open the same Packages screen (installs + caches).
+        let target: AppSection = (section == .packageManagers) ? .packageFinder : section
+        guard selectedSection != target else {
+            if target == .packageFinder { loadPackageFinder() }
+            return
+        }
         withAnimation(Theme.easeOut) {
-            selectedSection = section
+            selectedSection = target
             closeDetail()
         }
-        if section == .installedApps && !installedAppsLoaded {
+        if target == .packageFinder {
+            loadPackageFinder()
+        }
+        if target == .installedApps && !installedAppsLoaded {
             loadInstalledApps()
         }
-        if section == .trash {
+        if target == .trash {
             loadTrash()
         }
-        if section == .pulse {
+        if target == .pulse {
             refreshPulse()
         }
         if section == .envDoctor && !envLoaded {
@@ -375,7 +391,9 @@ final class AppModel: ObservableObject {
         rulesMeta = CloudRules.loadMeta()
         continuousMonitor.start { [weak self] _ in
             self?.monitorAlert = self?.continuousMonitor.alert
+            self?.refreshIntelligence()
         }
+        refreshIntelligence()
         // Background rules refresh (non-blocking)
         Task { await refreshCloudRules(silent: true) }
     }
@@ -802,6 +820,10 @@ final class AppModel: ObservableObject {
                 self.recordHistoryAndBuildDoctor()
                 self.buildTrends.record()
                 self.buildTrends = BuildTrendStore.load()
+                // Prefetch installs so Package Finder isn’t empty when opened.
+                self.loadPackageFinder()
+                self.refreshIntelligence()
+                self.runDueAutomation()
             }
             self.isScanning = false
             self.scanningSection = nil
@@ -850,13 +872,15 @@ final class AppModel: ObservableObject {
     }
 
     private func rebuildDoctorReport() {
+        preferenceMemory = PreferenceMemory.load()
         doctorReport = DoctorEngine.build(
             items: items,
             history: scanHistory.entries,
             freeBytes: freeBytes,
             totalBytes: totalBytes,
             skippedRules: adaptiveProfile.autoSkippedCount,
-            cacheHits: lastScanCacheHits
+            cacheHits: lastScanCacheHits,
+            prefs: preferenceMemory
         )
     }
 
@@ -1021,6 +1045,9 @@ final class AppModel: ObservableObject {
         }
 
         let reclaimed = removed.reduce(Int64(0)) { $0 + $1.sizeBytes }
+        for item in removed {
+            preferenceMemory.recordClean(key: PreferenceMemory.key(for: item))
+        }
         items.removeAll { removedIDs.contains($0.id) }
         selection.subtract(removedIDs)
         if case .scanItem(let open)? = detailTarget,
@@ -1031,6 +1058,7 @@ final class AppModel: ObservableObject {
         fingerprintCache.save()
         recordTrashReclaimed(reclaimed)
         rebuildDoctorReport()
+        refreshIntelligence()
         refreshDisk()
         refreshTrashSummary()
         loadTrash() // keep Trash browser in sync immediately
@@ -1129,8 +1157,11 @@ final class AppModel: ObservableObject {
         isLoadingCodebase = true
         Task.detached(priority: .userInitiated) {
             let findings = CodebaseAnalyzer.analyze(root: path)
+            let intel = RepoIntelligence.analyze(root: path)
             await MainActor.run {
                 self.codebaseFindings = findings
+                self.repoInsights = intel.insights
+                self.repoInsightTotal = intel.total
                 self.isLoadingCodebase = false
             }
         }
@@ -1177,13 +1208,114 @@ final class AppModel: ObservableObject {
         continuousMonitor.setEnabled(on) { [weak self] _ in
             self?.monitorAlert = self?.continuousMonitor.alert
             self?.refreshPulse()
+            self?.refreshIntelligence()
         }
+    }
+
+    func refreshIntelligence() {
+        preferenceMemory = PreferenceMemory.load()
+        automation = AutomationStore.load()
+        let pulse = systemPulse ?? SystemHealth.snapshot()
+        healthReport = HealthScore.compute(
+            items: items,
+            history: scanHistory.entries,
+            pulse: pulse,
+            models: aiModels,
+            env: envFindings,
+            prefs: preferenceMemory
+        )
+        predictiveInsights = PredictiveEngine.insights(
+            history: scanHistory.entries, pulse: pulse, items: items
+        )
+        proactiveAlerts = ProactiveEngine.evaluate(
+            items: items, history: scanHistory.entries, pulse: pulse, prefs: preferenceMemory
+        )
+        cloudBenchmarks = CloudIntelligence.benchmarks(items: items, optIn: automation.cloudOptIn)
+        if let alert = proactiveAlerts.first {
+            monitorAlert = "\(alert.title) — \(alert.recommendation)"
+        }
+    }
+
+    func setCloudOptIn(_ on: Bool) {
+        automation.cloudOptIn = on
+        automation.save()
+        refreshIntelligence()
+    }
+
+    func setAutomationRule(id: String, enabled: Bool) {
+        guard let i = automation.rules.firstIndex(where: { $0.id == id }) else { return }
+        automation.rules[i].enabled = enabled
+        automation.save()
+    }
+
+    func runDueAutomation() {
+        var store = automation
+        let cal = Calendar.current
+        let now = Date()
+        let weekday = cal.component(.weekday, from: now)
+        for i in store.rules.indices {
+            guard store.rules[i].enabled else { continue }
+            let rule = store.rules[i]
+            if let last = rule.lastRun, cal.isDateInToday(last), rule.schedule != "sunday" {
+                continue
+            }
+            let due: Bool = {
+                switch rule.schedule {
+                case "daily": return true
+                case "weekly":
+                    if let last = rule.lastRun {
+                        return now.timeIntervalSince(last) > 6 * 86_400
+                    }
+                    return true
+                case "sunday": return weekday == 1
+                default: return false
+                }
+            }()
+            guard due else { continue }
+            switch rule.action {
+            case "scanOnly":
+                if !isScanning { scan() }
+            case "safeCaches":
+                let safe = items.filter { $0.safety == .safe }
+                let bytes = safe.reduce(Int64(0)) { $0 + $1.sizeBytes }
+                if bytes >= rule.minBytes {
+                    monitorAlert = "Automation “\(rule.name)” ready: \(ByteText.string(bytes)) safe caches — review Overview to clean."
+                }
+            case "npmCache":
+                if let npm = items.first(where: { $0.name.localizedCaseInsensitiveContains("npm") && $0.sizeBytes >= rule.minBytes }) {
+                    monitorAlert = "Automation: \(npm.name) is \(npm.sizeText) — open Packages to clean."
+                }
+            default: break
+            }
+            store.rules[i].lastRun = now
+        }
+        automation = store
+        automation.save()
+        refreshIntelligence()
+    }
+
+    func markKeep(_ item: ScanItem) {
+        preferenceMemory.recordKeep(key: PreferenceMemory.key(for: item))
+        preferenceMemory = PreferenceMemory.load()
+        refreshIntelligence()
+    }
+
+    func seedLearningPrompt(for article: LearningArticle) {
+        chatInput = "Explain \(article.title) like a teacher — what it is, why it exists, when to delete, and what happens after."
     }
 
     func seedChatWelcome() {
         let welcome = WorkstationChat.Message(
             id: UUID(), role: .assistant,
-            text: "Hi — I’m grounded in your last scan. Try “Why is my SSD full?”, “Why is my Mac slow?”, “Explain DerivedData”, or “Show duplicate Node versions”.",
+            text: """
+            Hi — I’m your AI Workstation Doctor. I use your last scan (and Ollama if it’s running).
+
+            Try:
+            • Why is Docker taking so much space?
+            • What is DerivedData and is it safe to delete?
+            • Will my SSD fill up soon?
+            • Show my health score
+            """,
             createdAt: Date()
         )
         chatMessages = [welcome]

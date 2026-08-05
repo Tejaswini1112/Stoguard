@@ -199,16 +199,22 @@ final class ContinuousMonitor: ObservableObject {
     private func tick(onDiskDrop: (Int64) -> Void) {
         let pulse = SystemHealth.snapshot()
         lastPulse = pulse
+        var fired = false
         if let prev = lastFree {
             let dropped = prev - pulse.diskFreeBytes
             if dropped > 2_000_000_000 { // 2 GB free space lost
-                alert = "Free space dropped \(ByteText.storage(dropped)) since last check."
+                alert = "Free space dropped \(ByteText.storage(dropped)) since last check — open Health for explain → recommend → fix."
                 onDiskDrop(dropped)
+                fired = true
             }
         }
         lastFree = pulse.diskFreeBytes
         if pulse.diskUsedPercent > 92 {
-            alert = "Disk critically full (\(Int(pulse.diskUsedPercent))%). Open Doctor to reclaim space."
+            alert = "Disk critically full (\(Int(pulse.diskUsedPercent))%). Open Health → clean safe caches first."
+            if !fired { onDiskDrop(0) }
+        } else if pulse.memoryUsedPercent > 92 {
+            alert = "Memory pressure high (\(Int(pulse.memoryUsedPercent))%). Close idle AI models / heavy IDEs, then check Pulse."
+            if !fired { onDiskDrop(0) }
         }
     }
 }

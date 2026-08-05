@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/stoguard/stoguard/internal/intelligence"
 	"github.com/stoguard/stoguard/internal/models"
 )
 
@@ -87,6 +88,15 @@ func askOllama(prompt string) (string, error) {
 
 func localAnswer(question string, result *models.ScanResult, doctor *models.DoctorReport) string {
 	q := strings.ToLower(question)
+	if a := intelligence.ArticleMatching(q); a != nil &&
+		(strings.Contains(q, "what") || strings.Contains(q, "explain") || strings.Contains(q, "teach") || strings.Contains(q, "when")) {
+		return fmt.Sprintf("%s — teacher mode\n\nWhat it is:\n%s\n\nWhy it exists:\n%s\n\nWhy cleanup can be safe:\n%s\n\nWhen to delete:\n%s\n\nAfter deletion:\n%s",
+			a.Title, a.What, a.WhyCreated, a.WhySafe, a.WhenDelete, a.AfterDelete)
+	}
+	if strings.Contains(q, "health") || strings.Contains(q, "score") {
+		snap := intelligence.Build(result, nil)
+		return fmt.Sprintf("Health score: %d/100\n%s\n\nOpen Health in the sidebar for dimensions and predictions.", snap.Health.Overall, snap.Health.Headline)
+	}
 	var b strings.Builder
 	if doctor != nil {
 		b.WriteString(doctor.Headline + "\n\n")
@@ -105,6 +115,6 @@ func localAnswer(question string, result *models.ScanResult, doctor *models.Doct
 	if result.SafeBytes > 0 {
 		fmt.Fprintf(&b, "\nSafe to clean first: about %.1f GB.\n", float64(result.SafeBytes)/1e9)
 	}
-	b.WriteString("\n(Tip: install Ollama locally for richer AI answers — Stoguard will use it automatically.)")
+	b.WriteString("\nAsk me to explain DerivedData, Docker, or Ollama — or check Health for forecasts.")
 	return b.String()
 }

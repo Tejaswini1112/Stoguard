@@ -106,11 +106,28 @@ enum WorkstationChat {
             let s = context.report.reclaimableSafe
             return "Safe-to-clean caches total \(ByteText.string(s)). These are rebuildable (DerivedData, npm cache, IDE caches, etc.). Use Overview → Clean Selected, or Doctor recommendations. Nothing is permanently erased until you empty Trash."
         }
-        if matches(lower, ["what is", "explain", "mean"]) {
+        if matches(lower, ["health", "score", "how healthy"]) {
+            return healthBriefing(context: context)
+        }
+        if matches(lower, ["fill up", "will my ssd", "predict", "forecast", "run out"]) {
+            return predictBriefing(context: context)
+        }
+        if matches(lower, ["what is", "explain", "mean", "why does", "teacher", "when should", "what happens"]) {
+            if let article = LearningCenter.article(matching: lower) {
+                return teach(article)
+            }
             if let item = context.items.first(where: { lower.contains($0.name.lowercased()) || lower.contains($0.id.lowercased()) }) {
                 return TermGlossary.explain(item: item)
             }
             return whyIsSSDFull(context: context)
+        }
+        if matches(lower, ["taking", "so much", "why is"]) {
+            if matches(lower, ["docker"]) {
+                return teachFocus(term: "Docker", category: "Containers", context: context)
+            }
+            if matches(lower, ["derived", "xcode"]) {
+                return teachFocus(term: "DerivedData", category: "Developer", context: context)
+            }
         }
 
         // Default: short briefing
@@ -119,8 +136,66 @@ enum WorkstationChat {
 
         \(whyIsSSDFull(context: context))
 
-        You can also ask: “why is my Mac slow?”, “what about Docker?”, “show duplicate Node versions”, or “explain DerivedData”.
+        Ask me to explain any term (DerivedData, Docker, Ollama), forecast disk fill-up, or review health.
         """
+    }
+
+    private static func teach(_ a: LearningArticle) -> String {
+        """
+        \(a.title) — teacher mode
+
+        What it is:
+        \(a.what)
+
+        Why it exists:
+        \(a.whyCreated)
+
+        Why cleanup can be safe:
+        \(a.whySafe)
+
+        When to delete:
+        \(a.whenDelete)
+
+        After deletion:
+        \(a.afterDelete)
+        """
+    }
+
+    private static func teachFocus(term: String, category: String, context: Context) -> String {
+        let base = focusCategory(category, context: context, term: term)
+        if let article = LearningCenter.article(matching: term.lowercased()) {
+            return """
+            \(base)
+
+            ———
+            \(teach(article))
+            """
+        }
+        return base
+    }
+
+    private static func healthBriefing(context: Context) -> String {
+        let pulse = context.pulse
+        let safe = context.report.reclaimableSafe
+        let used = pulse.map { Int($0.diskUsedPercent) } ?? 0
+        return """
+        Health snapshot (from your last scan + pulse):
+        • Disk ~\(used)% used
+        • Safe reclaimable \(ByteText.string(safe))
+        • Open Health in the sidebar for the full 0–100 score across Storage, Performance, Security, and AI Workspace.
+        """
+    }
+
+    private static func predictBriefing(context: Context) -> String {
+        let insights = PredictiveEngine.insights(
+            history: context.report.timeline,
+            pulse: context.pulse,
+            items: context.items
+        )
+        if insights.isEmpty {
+            return "I need a few scans over multiple days to forecast when your SSD will fill. Run Smart Scan again tomorrow."
+        }
+        return insights.map { "• \($0.title)\n  \($0.body)" }.joined(separator: "\n\n")
     }
 
     private static func whySlow(context: Context) -> String {

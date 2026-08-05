@@ -128,13 +128,14 @@ enum DoctorEngine {
         freeBytes: Int64,
         totalBytes: Int64,
         skippedRules: Int,
-        cacheHits: Int
+        cacheHits: Int,
+        prefs: PreferenceMemory = PreferenceMemory()
     ) -> DoctorReport {
         let safe = items.filter { $0.safety == .safe }.reduce(Int64(0)) { $0 + $1.sizeBytes }
         let check = items.filter { $0.safety == .check || $0.safety == .command }
             .reduce(Int64(0)) { $0 + $1.sizeBytes }
 
-        let recommendations = makeRecommendations(from: items)
+        let recommendations = makeRecommendations(from: items, prefs: prefs)
         let growth = makeGrowth(items: items, history: history)
         let summary = makeSummary(
             items: items,
@@ -193,13 +194,26 @@ enum DoctorEngine {
 
     // MARK: Private
 
-    private static func makeRecommendations(from items: [ScanItem]) -> [DoctorRecommendation] {
+    private static func makeRecommendations(from items: [ScanItem], prefs: PreferenceMemory) -> [DoctorRecommendation] {
         var recs: [DoctorRecommendation] = []
-        let sorted = items.sorted { $0.sizeBytes > $1.sizeBytes }
+        let sorted = items.sorted { a, b in
+            let ka = PreferenceMemory.key(for: a)
+            let kb = PreferenceMemory.key(for: b)
+            let pa = prefs.shouldPrioritize(ka)
+            let pb = prefs.shouldPrioritize(kb)
+            let da = prefs.shouldDeprioritize(ka)
+            let db = prefs.shouldDeprioritize(kb)
+            if pa != pb { return pa && !pb }
+            if da != db { return !da && db }
+            return a.sizeBytes > b.sizeBytes
+        }
 
         for item in sorted.prefix(40) {
+            let key = PreferenceMemory.key(for: item)
+            if prefs.shouldDeprioritize(key) { continue }
             let days = item.daysSinceActivity
             let unused = days.map { $0 >= unusedDaysThreshold } ?? false
+            let habit = prefs.note(for: key).map { " \($0)" } ?? ""
 
             if unused && item.sizeBytes >= 50_000_000 {
                 let d = days ?? unusedDaysThreshold
@@ -207,7 +221,7 @@ enum DoctorEngine {
                     id: "unused-\(item.id)",
                     title: "\(item.name) looks unused",
                     explanation: explain(item),
-                    advice: "Last activity about \(d) days ago. \(item.safety == .safe ? "Safe to move to Trash." : item.safety == .command ? "Prefer the recommended CLI rather than deleting the folder." : "Review before removing.")",
+                    advice: "Last activity about \(d) days ago. \(item.safety == .safe ? "Safe to move to Trash." : item.safety == .command ? "Prefer the recommended CLI rather than deleting the folder." : "Review before removing.")\(habit)",
                     bytes: item.sizeBytes,
                     daysUnused: d,
                     action: actionKind(for: item),
@@ -219,7 +233,7 @@ enum DoctorEngine {
                     id: "safe-\(item.id)",
                     title: "\(item.name) can be cleared",
                     explanation: explain(item),
-                    advice: "Marked safe — tools recreate this data when needed.",
+                    advice: "Marked safe — tools recreate this data when needed.\(habit)",
                     bytes: item.sizeBytes,
                     daysUnused: days,
                     action: .trashSafe,
@@ -231,7 +245,7 @@ enum DoctorEngine {
                     id: "cmd-\(item.id)",
                     title: "Use the CLI for \(item.name)",
                     explanation: explain(item),
-                    advice: "Deleting this folder by hand can corrupt tool state. Copy the suggested command instead.",
+                    advice: "Deleting this folder by hand can corrupt tool state. Copy the suggested command instead.\(habit)",
                     bytes: item.sizeBytes,
                     daysUnused: days,
                     action: .runCommand,
@@ -241,7 +255,7 @@ enum DoctorEngine {
             }
         }
 
-        // Deduplicate by related item, keep first (largest-first already).
+        // Deduplicate by related item, keep first (priority + size order).
         var seen = Set<String>()
         return recs.filter { rec in
             let key = rec.relatedItemID ?? rec.id

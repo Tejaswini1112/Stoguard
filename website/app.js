@@ -1,4 +1,19 @@
 (() => {
+  const THEME_KEY = "stoguard.site.theme";
+  function currentTheme() {
+    return document.documentElement.getAttribute("data-theme") === "light" ? "light" : "dark";
+  }
+  function applyTheme(theme) {
+    const next = theme === "light" ? "light" : "dark";
+    document.documentElement.setAttribute("data-theme", next);
+    try { localStorage.setItem(THEME_KEY, next); } catch (_) {}
+    const btn = document.getElementById("theme-toggle");
+    if (btn) btn.textContent = next === "light" ? "Dark mode" : "Light mode";
+  }
+  applyTheme(currentTheme());
+  const themeBtn = document.getElementById("theme-toggle");
+  if (themeBtn) themeBtn.onclick = () => applyTheme(currentTheme() === "light" ? "dark" : "light");
+
   const meters = {
     docker: { label: "Docker", gb: 23, el: null },
     xcode: { label: "Xcode", gb: 14, el: null },

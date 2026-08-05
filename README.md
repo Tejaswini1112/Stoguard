@@ -38,10 +38,17 @@ Stoguard finds what’s eating a developer workstation — Docker, package cache
 
 ### Core capabilities
 - Parallel rule-based scan with adaptive skips + fingerprint cache  
-- **AI Cleanup** — models, skills/MCP, and AI caches in one place with one-tap safe clean  
+- **Health score** — storage / performance / security / AI workspace + SSD fill forecasts  
+- **Proactive monitor** — detect → explain → recommend (background disk/memory alerts)  
+- **Preference memory** — Keep vs Clean habits reshape Doctor ranking  
+- **Learning Center** + richer Ask (teacher-mode explanations; Ollama optional)  
+- **Automation** — scheduled scan/tidy rules + opt-in local cohort benchmarks  
+- **AI Cleanup** — models, skills/MCP, and AI caches with archive/dedupe advice  
 - **Package Finder** — Homebrew / npm / pipx / CLI installs with definition + size  
+- **Repository intelligence** — heavy folders + large binaries in a pointed-at repo  
+- **Plugin SDK** — drop-in JSON rules (`docs/PLUGIN_SDK.md`)  
 - Symlink-safe Trash / recycle staging  
-- Workstation Doctor, storage timeline, duplicates, Ask AI (Ollama optional)  
+- Workstation Doctor, storage timeline, duplicates  
 - Free / Pro / Team feature tiers (local/dev builds default to **Team** for full unlock)  
 - Team fleet ingest + console (set `STOGUARD_TIER=free` or `pro` to simulate lower tiers)
 

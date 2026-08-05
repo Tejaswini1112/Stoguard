@@ -1,0 +1,24 @@
+{
+  "id": "example-bazel",
+  "name": "Bazel caches",
+  "version": "1.0.0",
+  "platforms": ["macos", "linux"],
+  "rules": [
+    {
+      "id": "plugin-bazel-cache",
+      "name": "Bazel cache",
+      "path": "~/.cache/bazel",
+      "category": "Developer",
+      "safety": "safe",
+      "note": "Plugin example — Bazel local cache. Rebuildable; safe to Trash when disk is tight."
+    },
+    {
+      "id": "plugin-bazel-output",
+      "name": "Bazel output base",
+      "path": "~/.cache/bazel/_bazel_$USER",
+      "category": "Developer",
+      "safety": "check",
+      "note": "Bazel output base can be large. Review before removing active workspaces."
+    }
+  ]
+}

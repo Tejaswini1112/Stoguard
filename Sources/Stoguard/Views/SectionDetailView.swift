@@ -12,15 +12,20 @@ struct SectionDetailView: View {
             Group {
                 switch model.selectedSection {
                 case .overview: OverviewView()
+                case .health: HealthDashboardView()
                 case .doctor: DoctorReportView()
                 case .ask: AskStoguardView()
+                case .learning: LearningCenterView()
+                case .automation: AutomationView()
                 case .pulse: SystemPulseView()
                 case .envDoctor: EnvDoctorView()
                 case .buildTrends: BuildTrendsView()
                 case .aiCleanup: AICleanupView()
                 case .aiModels: AIModelsView()
                 case .duplicates: DuplicatesView()
-                case .packageFinder: PackageFinderView()
+                // Package Managers (caches) and Package Finder share one screen —
+                // installs + definitions + caches — so “Packages” never hides brew/npm installs.
+                case .packageFinder, .packageManagers: PackageFinderView()
                 case .agentTools: AgentToolsView()
                 case .gitRepos: GitReposView()
                 case .codebase: CodebaseView()

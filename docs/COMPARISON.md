@@ -65,9 +65,9 @@ Legend: ✅ Full · ⚠️ Partial · ❌ Not present
 | macOS Finder trash sounds | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ |
 | Confirm before every delete | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
 | **Automation & background** |
-| Scheduled auto-clean | ✅ | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| Scheduled auto-clean | ✅ | ✅ | ❌ | ❌ | ❌ | ❌ | ⚠️ rules + prompts |
 | Menu bar companion | ❌ | ✅ | ✅ | ❌ | ❌ | ✅ | ❌ |
-| Storage forecast (disk fill prediction) | ❌ | ❌ | ✅ | ❌ | ❌ | ❌ | ❌ |
+| Storage forecast (disk fill prediction) | ❌ | ❌ | ✅ | ❌ | ❌ | ❌ | ✅ Health |
 | **Permissions & trust** |
 | Full Disk Access gate | ✅ | ✅ | ⚠️ | ❌ | ✅ | N/A sandbox | ✅ |
 | Zero network / local-only | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |

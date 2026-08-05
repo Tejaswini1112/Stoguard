@@ -161,9 +161,8 @@ enum PluginLoader {
     static func ensureScaffold() {
         SupportPaths.ensureDirectory()
         try? FileManager.default.createDirectory(at: pluginsDirectory, withIntermediateDirectories: true)
-        let example = pluginsDirectory.appendingPathComponent("example-rust.json")
-        if !FileManager.default.fileExists(atPath: example.path) {
-            let sample = """
+        let examples: [(String, String)] = [
+            ("example-rust.json", """
             {
               "id": "example-rust",
               "name": "Rust extras",
@@ -180,8 +179,18 @@ enum PluginLoader {
                 }
               ]
             }
-            """
-            try? sample.data(using: .utf8)?.write(to: example, options: .atomic)
+            """),
+            ("README.txt", """
+            Stoguard Plugin SDK
+            Drop JSON plugins here. See docs/PLUGIN_SDK.md in the repo for the full schema.
+            Fields: id, name, version, platforms[], rules[{id,name,path,category,safety,note,command?}].
+            """),
+        ]
+        for (name, body) in examples {
+            let url = pluginsDirectory.appendingPathComponent(name)
+            if !FileManager.default.fileExists(atPath: url.path) {
+                try? body.data(using: .utf8)?.write(to: url, options: .atomic)
+            }
         }
     }
 

@@ -21,6 +21,7 @@ struct OverviewView: View {
                 SmartCareHero(hasScanResults: hasResults)
 
                 if hasResults {
+                    healthTeaser
                     doctorTeaser
                     reviewSection
                 } else if model.isScanning && model.scanningSection == nil {
@@ -34,6 +35,33 @@ struct OverviewView: View {
             .frame(maxWidth: .infinity)
         }
         .background(Theme.bg)
+    }
+
+    private var healthTeaser: some View {
+        HStack(spacing: 14) {
+            VStack(spacing: 2) {
+                Text(model.healthReport.map { "\($0.overall)" } ?? "—")
+                    .font(.system(size: 36, weight: .bold).monospacedDigit())
+                    .foregroundStyle(Theme.navy)
+                Text("Health").font(.caption).foregroundStyle(Theme.secondaryText)
+            }
+            .frame(width: 72)
+            VStack(alignment: .leading, spacing: 4) {
+                Text(model.healthReport?.headline ?? "Scan to unlock your health score.")
+                    .font(.system(size: 13, weight: .semibold))
+                if let tip = model.predictiveInsights.first {
+                    Text(tip.title).font(.caption).foregroundStyle(Theme.secondaryText)
+                } else if let alert = model.proactiveAlerts.first {
+                    Text(alert.title).font(.caption).foregroundStyle(Theme.secondaryText)
+                }
+            }
+            Spacer()
+            Button("Health") { model.selectSection(.health) }
+                .buttonStyle(SecondaryOutlineButtonStyle())
+        }
+        .padding(12)
+        .elevatedCard(radius: 12)
+        .onAppear { model.refreshIntelligence() }
     }
 
     private var doctorTeaser: some View {

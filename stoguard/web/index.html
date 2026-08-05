@@ -1,9 +1,19 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="dark">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Stoguard</title>
+  <script>
+    (function () {
+      try {
+        var key = "stoguard.theme";
+        var saved = localStorage.getItem(key);
+        var theme = saved || (matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark");
+        document.documentElement.setAttribute("data-theme", theme);
+      } catch (_) {}
+    })();
+  </script>
   <link rel="stylesheet" href="styles.css" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -20,10 +30,14 @@
         </div>
       </div>
       <div class="tier-pill" id="tier-pill">Pro</div>
+      <button type="button" class="theme-toggle" id="theme-toggle" aria-label="Toggle light and dark mode">Light mode</button>
       <nav>
         <button class="nav active" data-view="overview">Overview</button>
+        <button class="nav" data-view="health" data-feature="health">Health</button>
         <button class="nav" data-view="doctor" data-feature="doctor">Workstation Doctor <span class="tier-badge">Pro</span></button>
         <button class="nav" data-view="ask" data-feature="ask">Ask Stoguard <span class="tier-badge">Pro</span></button>
+        <button class="nav" data-view="learning" data-feature="learning">Learning Center</button>
+        <button class="nav" data-view="automation" data-feature="automation">Automation <span class="tier-badge">Pro</span></button>
         <button class="nav" data-view="duplicates" data-feature="duplicates">Duplicates <span class="tier-badge">Pro</span></button>
         <button class="nav" data-view="aicleanup" data-feature="models">AI Cleanup <span class="tier-badge">Pro</span></button>
         <button class="nav" data-view="packages" data-feature="packages">Package Finder <span class="tier-badge">Pro</span></button>
@@ -48,16 +62,19 @@
       </header>
 
       <section id="view-overview" class="view active"></section>
+      <section id="view-health" class="view"></section>
       <section id="view-doctor" class="view"></section>
       <section id="view-ask" class="view">
         <div class="chat">
           <div id="chat-log" class="chat-log"></div>
           <form id="chat-form" class="chat-form">
-            <input id="chat-input" placeholder="Why is my disk full? What’s safe to clean?" autocomplete="off" />
+            <input id="chat-input" placeholder="Why is my disk full? Explain DerivedData. What’s my health score?" autocomplete="off" />
             <button class="btn primary" type="submit">Ask</button>
           </form>
         </div>
       </section>
+      <section id="view-learning" class="view"></section>
+      <section id="view-automation" class="view"></section>
       <section id="view-duplicates" class="view"></section>
       <section id="view-aicleanup" class="view"></section>
       <section id="view-packages" class="view"></section>

@@ -1,9 +1,10 @@
 import SwiftUI
 
-/// Navy + neutral system — accent is deep navy, not system blue or rainbow.
+/// Soft slate-blue accent — follows system light/dark automatically via semantic colors.
 enum Theme {
-    static let navy = Color(red: 0.08, green: 0.12, blue: 0.26)
-    static let navyMid = Color(red: 0.12, green: 0.18, blue: 0.36)
+    /// Pastel slate blue (works on light + dark).
+    static let navy = Color(red: 0.36, green: 0.56, blue: 0.72)
+    static let navyMid = Color(red: 0.30, green: 0.48, blue: 0.64)
     static let accent = navy
 
     static let bg = Color(nsColor: .windowBackgroundColor)
@@ -14,14 +15,14 @@ enum Theme {
     static let secondaryText = Color(nsColor: .secondaryLabelColor)
     static let tertiaryText = Color(nsColor: .tertiaryLabelColor)
 
-    static let heroTop = Color(red: 0.06, green: 0.09, blue: 0.18)
-    static let heroBottom = Color(red: 0.04, green: 0.06, blue: 0.12)
+    static let heroTop = Color(red: 0.14, green: 0.20, blue: 0.28)
+    static let heroBottom = Color(red: 0.10, green: 0.14, blue: 0.20)
     static let heroText = Color.white
     static let heroSubtext = Color.white.opacity(0.58)
 
-    static let safeGreen = Color(red: 0.20, green: 0.62, blue: 0.38)
-    static let checkAmber = Color(red: 0.85, green: 0.55, blue: 0.12)
-    static let dangerRed = Color(red: 0.78, green: 0.17, blue: 0.15)
+    static let safeGreen = Color(red: 0.36, green: 0.56, blue: 0.72) // soft blue “safe” chip
+    static let checkAmber = Color(red: 0.72, green: 0.55, blue: 0.28)
+    static let dangerRed = Color(red: 0.77, green: 0.36, blue: 0.31)
 
     // Motion tokens (Emil-style — ease-out, under 300ms)
     static let easeOut = Animation.easeOut(duration: 0.16)

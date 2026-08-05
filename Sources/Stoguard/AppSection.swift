@@ -3,8 +3,11 @@ import SwiftUI
 /// Sidebar destinations — PureMac-style categories, Purge-style calm labels.
 enum AppSection: String, CaseIterable, Identifiable {
     case overview = "Overview"
+    case health = "Health"
     case doctor = "Workstation Doctor"
     case ask = "Ask Stoguard"
+    case learning = "Learning Center"
+    case automation = "Automation"
     case pulse = "System Pulse"
     case envDoctor = "Env Doctor"
     case buildTrends = "Build Trends"
@@ -34,7 +37,7 @@ enum AppSection: String, CaseIterable, Identifiable {
     /// Maps to the `category` field in rules.json (or discovery bucket).
     var ruleCategory: String? {
         switch self {
-        case .overview, .doctor, .ask, .pulse, .envDoctor, .buildTrends,
+        case .overview, .health, .doctor, .ask, .learning, .automation, .pulse, .envDoctor, .buildTrends,
              .aiCleanup, .aiModels, .duplicates, .packageFinder, .agentTools, .gitRepos, .codebase, .rulesPlugins, .fleet,
              .installedApps, .about, .trash:
             return nil
@@ -46,8 +49,11 @@ enum AppSection: String, CaseIterable, Identifiable {
     var icon: String {
         switch self {
         case .overview: return "chart.pie.fill"
+        case .health: return "heart.circle.fill"
         case .doctor: return "stethoscope"
         case .ask: return "text.bubble.fill"
+        case .learning: return "book.fill"
+        case .automation: return "clock.arrow.2.circlepath"
         case .pulse: return "heart.text.square.fill"
         case .envDoctor: return "wrench.and.screwdriver.fill"
         case .buildTrends: return "chart.line.uptrend.xyaxis"
@@ -77,8 +83,11 @@ enum AppSection: String, CaseIterable, Identifiable {
     var blurb: String {
         switch self {
         case .overview: return "Disk usage and reclaimable space at a glance."
+        case .health: return "Overall developer machine health score, predictions, and proactive alerts."
         case .doctor: return "Plain-English diagnosis — what grew, what's unused, and what's safe to fix."
-        case .ask: return "Ask why your SSD is full, what’s slow, or what a cache means."
+        case .ask: return "Conversational AI grounded in your scan — ask why Docker is huge, what DerivedData is, etc."
+        case .learning: return "Teachable glossary — what terms mean, when to delete, what happens after."
+        case .automation: return "Scheduled scans and safe tidy rules — plus opt-in cohort benchmarks."
         case .pulse: return "CPU, memory, and disk pressure — why the machine feels slow."
         case .envDoctor: return "Brew, Node, Python, Java, Android SDK health checks."
         case .buildTrends: return "DerivedData / Gradle cache size over time."
@@ -110,12 +119,13 @@ enum AppSection: String, CaseIterable, Identifiable {
     }
 
     static var insightTools: [AppSection] {
-        [.doctor, .ask, .pulse, .envDoctor, .buildTrends]
+        [.health, .doctor, .ask, .learning, .automation, .pulse, .envDoctor, .buildTrends]
     }
 
     static var optimizeTools: [AppSection] {
         // AI Models + Skills/MCP roll up into AI Cleanup for immediate cleanup.
-        [.aiCleanup, .duplicates, .packageFinder, .gitRepos, .codebase]
+        // Package Finder is the install inventory (brew/npm) — keep it prominent.
+        [.aiCleanup, .packageFinder, .duplicates, .gitRepos, .codebase]
     }
 
     static var platformTools: [AppSection] {
@@ -123,7 +133,8 @@ enum AppSection: String, CaseIterable, Identifiable {
     }
 
     static var advancedTools: [AppSection] {
-        [.developer, .packageManagers, .browserAutomation, .containers, .aiTools]
+        // Package Managers lives under Optimize → Packages (installs + caches).
+        [.developer, .browserAutomation, .containers, .aiTools]
     }
 
     static var generalCleanup: [AppSection] {
@@ -148,15 +159,18 @@ enum AppSection: String, CaseIterable, Identifiable {
 
     var sidebarLabel: String {
         switch self {
+        case .health: return "Health"
         case .doctor: return "Doctor"
         case .ask: return "Ask"
+        case .learning: return "Learn"
+        case .automation: return "Automate"
         case .pulse: return "Pulse"
         case .envDoctor: return "Env"
         case .buildTrends: return "Builds"
         case .aiCleanup: return "AI Cleanup"
         case .aiModels: return "Models"
         case .duplicates: return "Dupes"
-        case .packageFinder: return "Pkg Finder"
+        case .packageFinder: return "Packages"
         case .agentTools: return "Skills/MCP"
         case .gitRepos: return "Git"
         case .codebase: return "Repo"

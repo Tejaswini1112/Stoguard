@@ -15,6 +15,7 @@ import (
 	"github.com/stoguard/stoguard/internal/duplicates"
 	"github.com/stoguard/stoguard/internal/fleet"
 	"github.com/stoguard/stoguard/internal/history"
+	"github.com/stoguard/stoguard/internal/intelligence"
 	"github.com/stoguard/stoguard/internal/models"
 	"github.com/stoguard/stoguard/internal/packages"
 	"github.com/stoguard/stoguard/internal/platform"
@@ -58,6 +59,10 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("/api/fleet", s.handleFleet)
 	mux.HandleFunc("/api/fleet/ingest", s.handleFleetIngest)
 	mux.HandleFunc("/api/fleet/export", s.handleFleetExport)
+	mux.HandleFunc("/api/intelligence", s.handleIntelligence)
+	mux.HandleFunc("/api/automation", s.handleAutomation)
+	mux.HandleFunc("/api/preference", s.handlePreference)
+	mux.HandleFunc("/api/learning", s.handleLearning)
 	return mux
 }
 
@@ -185,6 +190,18 @@ func (s *Server) handleTrash(w http.ResponseWriter, r *http.Request) {
 	if err := trash.Move(body.Path); err != nil {
 		http.Error(w, err.Error(), 400)
 		return
+	}
+	// Learn from cleans when we can map path → last scan item id.
+	s.mu.RLock()
+	last := s.last
+	s.mu.RUnlock()
+	if last != nil {
+		for _, it := range last.Items {
+			if it.Path == body.Path {
+				_ = intelligence.RecordClean(it.ID)
+				break
+			}
+		}
 	}
 	writeJSON(w, map[string]string{"status": "ok"})
 }
@@ -315,6 +332,63 @@ func (s *Server) handleFleetExport(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, fleet.FromScan(last))
+}
+
+func (s *Server) handleIntelligence(w http.ResponseWriter, r *http.Request) {
+	s.mu.RLock()
+	last := s.last
+	s.mu.RUnlock()
+	writeJSON(w, intelligence.Build(last, s.hist.Entries))
+}
+
+func (s *Server) handleLearning(w http.ResponseWriter, r *http.Request) {
+	writeJSON(w, intelligence.Articles())
+}
+
+func (s *Server) handleAutomation(w http.ResponseWriter, r *http.Request) {
+	switch r.Method {
+	case http.MethodGet:
+		writeJSON(w, intelligence.LoadAutomation())
+	case http.MethodPost:
+		var body intelligence.AutomationStore
+		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+			http.Error(w, "invalid automation JSON", 400)
+			return
+		}
+		if err := intelligence.SaveAutomation(body); err != nil {
+			http.Error(w, err.Error(), 500)
+			return
+		}
+		writeJSON(w, body)
+	default:
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+	}
+}
+
+func (s *Server) handlePreference(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	var body struct {
+		ID     string `json:"id"`
+		Action string `json:"action"` // keep | clean
+	}
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil || body.ID == "" {
+		http.Error(w, "id and action required", 400)
+		return
+	}
+	var prefs intelligence.PreferenceMemory
+	switch body.Action {
+	case "keep":
+		prefs = intelligence.RecordKeep(body.ID)
+	case "clean":
+		prefs = intelligence.RecordClean(body.ID)
+	default:
+		http.Error(w, "action must be keep or clean", 400)
+		return
+	}
+	writeJSON(w, prefs)
 }
 
 func writeJSON(w http.ResponseWriter, v any) {

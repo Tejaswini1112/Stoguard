@@ -21,6 +21,7 @@ struct PackageFinding: Identifiable, Hashable, Sendable {
 
 enum PackageFinder {
     static func scan() -> [PackageFinding] {
+        // Descriptions are nice-to-have; never block listing installs on brew info.
         let brewDesc = loadBrewDescriptions()
         var out: [PackageFinding] = []
         out += brewPackages(descriptions: brewDesc)
@@ -62,8 +63,19 @@ enum PackageFinder {
         proc.standardOutput = out
         proc.standardError = Pipe()
         do { try proc.run() } catch { return [:] }
+
+        // Cap wait — listing Cellar must not hang if brew is slow.
+        let group = DispatchGroup()
+        group.enter()
+        DispatchQueue.global().async {
+            proc.waitUntilExit()
+            group.leave()
+        }
+        if group.wait(timeout: .now() + 8) == .timedOut {
+            proc.terminate()
+            return [:]
+        }
         let data = out.fileHandleForReading.readDataToEndOfFile()
-        proc.waitUntilExit()
         guard let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
               let formulae = json["formulae"] as? [[String: Any]]
         else { return [:] }
@@ -84,7 +96,7 @@ enum PackageFinder {
             "/usr/local/Cellar",
             (NSHomeDirectory() as NSString).appendingPathComponent("homebrew/Cellar"),
         ]
-        var findings: [PackageFinding] = []
+        var versionPaths: [(formula: String, ver: String, path: String)] = []
         let fm = FileManager.default
         for cellar in cellarCandidates where fm.fileExists(atPath: cellar) {
             guard let formulae = try? fm.contentsOfDirectory(atPath: cellar) else { continue }
@@ -96,20 +108,31 @@ enum PackageFinder {
                     let path = (formulaDir as NSString).appendingPathComponent(ver)
                     var isDir: ObjCBool = false
                     guard fm.fileExists(atPath: path, isDirectory: &isDir), isDir.boolValue else { continue }
-                    let size = Shell.size(path)
-                    guard size > 1_000_000 else { continue } // skip tiny meta
-                    findings.append(make(
-                        id: "brew-\(formula)-\(ver)",
-                        name: formula,
-                        source: "Homebrew",
-                        path: path,
-                        sizeBytes: size,
-                        detail: "Cellar \(ver) · \(ByteText.string(size)). Uninstall: brew uninstall \(formula)",
-                        lastActivity: PathActivity.lastActivity(at: path),
-                        brewDesc: descriptions
-                    ))
+                    versionPaths.append((formula, ver, path))
                 }
             }
+        }
+
+        // Size in parallel — sequential `du` over 100+ formulae felt like “not found”.
+        let lock = NSLock()
+        var findings: [PackageFinding] = []
+        DispatchQueue.concurrentPerform(iterations: versionPaths.count) { i in
+            let item = versionPaths[i]
+            let size = Shell.size(item.path)
+            guard size > 500_000 else { return } // include smaller CLIs too
+            let finding = make(
+                id: "brew-\(item.formula)-\(item.ver)",
+                name: item.formula,
+                source: "Homebrew",
+                path: item.path,
+                sizeBytes: size,
+                detail: "Cellar \(item.ver) · \(ByteText.string(size)). Uninstall: brew uninstall \(item.formula)",
+                lastActivity: PathActivity.lastActivity(at: item.path),
+                brewDesc: descriptions
+            )
+            lock.lock()
+            findings.append(finding)
+            lock.unlock()
         }
         return findings
     }
@@ -131,7 +154,7 @@ enum PackageFinder {
                 if name == "npm" || name == "corepack" { continue }
                 let path = (root as NSString).appendingPathComponent(name)
                 let size = Shell.size(path)
-                guard size > 500_000 else { continue }
+                guard size > 200_000 else { continue }
                 let pkgDesc = readNpmDescription(at: path)
                 var brewLike: [String: String] = [:]
                 if let pkgDesc, !pkgDesc.isEmpty { brewLike[name.lowercased()] = pkgDesc }
@@ -160,7 +183,7 @@ enum PackageFinder {
         return names.compactMap { name -> PackageFinding? in
             let path = (root as NSString).appendingPathComponent(name)
             let size = Shell.size(path)
-            guard size > 1_000_000 else { return nil }
+            guard size > 500_000 else { return nil }
             return make(
                 id: "pipx-\(name)",
                 name: name,
@@ -193,14 +216,12 @@ enum PackageFinder {
     private static func looseBins() -> [PackageFinding] {
         let roots = [
             (NSHomeDirectory() as NSString).appendingPathComponent(".local/bin"),
-            "/opt/homebrew/bin",
         ]
         var out: [PackageFinding] = []
         for root in roots {
             out += binaries(in: root, source: "User bin", detailPrefix: "Executable on your PATH")
         }
-        // Cap noise from homebrew bin (thousands of symlinks) — only report large real files
-        return out.filter { $0.sizeBytes >= 2_000_000 || $0.source == "User bin" }
+        return out
     }
 
     private static func binaries(in root: String, source: String, detailPrefix: String) -> [PackageFinding] {
@@ -213,7 +234,7 @@ enum PackageFinder {
             let type = attrs[.type] as? FileAttributeType
             if type == .typeSymbolicLink { continue }
             let size = (attrs[.size] as? NSNumber)?.int64Value ?? 0
-            guard size > 500_000 else { continue }
+            guard size > 200_000 else { continue }
             out.append(make(
                 id: "bin-\(source)-\(name)",
                 name: name,

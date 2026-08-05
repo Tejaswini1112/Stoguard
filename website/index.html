@@ -1,10 +1,20 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="dark">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Stoguard — AI Developer Workstation Manager</title>
   <meta name="description" content="Stoguard finds what’s eating your developer machine — AI models, forgotten packages (with definitions), and caches — then cleans safely to Trash on macOS, Windows, and Linux." />
+  <script>
+    (function () {
+      try {
+        var key = "stoguard.site.theme";
+        var saved = localStorage.getItem(key);
+        var theme = saved || (matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark");
+        document.documentElement.setAttribute("data-theme", theme);
+      } catch (_) {}
+    })();
+  </script>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet" />
@@ -26,6 +36,7 @@
       <a href="#pricing">Pricing</a>
       <a href="#source">Source</a>
     </nav>
+    <button type="button" class="theme-toggle" id="theme-toggle" aria-label="Toggle light and dark mode">Light mode</button>
     <a class="btn btn-small" href="#downloads">Download</a>
   </header>
 

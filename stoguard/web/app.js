@@ -9,9 +9,13 @@ const state = {
   duplicates: [],
   models: [],
   packages: [],
+  packagesLoading: false,
+  packagesError: null,
+  packagesLoaded: false,
   agentTools: [],
   history: [],
   fleet: [],
+  intelligence: null,
   view: "overview",
   scanning: false,
   scanAutomation: localStorage.getItem(AUTO_KEY) === "1",
@@ -20,8 +24,11 @@ const state = {
 
 const titles = {
   overview: ["Overview", "Find AI models, packages, and caches — with definitions and safe cleanup"],
+  health: ["Health", "Score, predictions, and proactive alerts"],
   doctor: ["Workstation Doctor", "Prioritized cleanup recommendations"],
   ask: ["Ask Stoguard", "Answers grounded in your last scan"],
+  learning: ["Learning Center", "What terms mean, when to delete, what happens after"],
+  automation: ["Automation", "Scheduled scans, tidy rules, opt-in cohort benchmarks"],
   duplicates: ["Duplicates", "Overlapping caches and installs"],
   aicleanup: ["AI Cleanup", "Models, skills, MCP, and AI caches — clean safe items immediately"],
   packages: ["Package Finder", "Each install with a definition and how much disk it uses"],
@@ -90,7 +97,7 @@ function clearScanResults() {
   state.doctor = null;
   state.duplicates = [];
   state.models = [];
-  state.packages = [];
+  // Keep Package Finder installs — those are independent of workstation scan.
   state.agentTools = [];
   toast("Scan results cleared — run Scan again when ready");
   setView("overview");
@@ -113,10 +120,17 @@ function setScanAutomation(on) {
 }
 
 async function api(path, opts = {}) {
-  const res = await fetch(path, {
-    headers: { "Content-Type": "application/json", ...(opts.headers || {}) },
-    ...opts,
-  });
+  let res;
+  try {
+    res = await fetch(path, {
+      headers: { "Content-Type": "application/json", ...(opts.headers || {}) },
+      ...opts,
+    });
+  } catch (e) {
+    throw new Error(
+      "Stoguard server is offline (127.0.0.1:8787). In Terminal run:\ncd stoguard && ./dist/stoguard -port 8787"
+    );
+  }
   if (!res.ok) {
     const text = await res.text();
     throw new Error(text || res.statusText);
@@ -268,6 +282,154 @@ function renderHero() {
   if (autoBtn) autoBtn.onclick = () => toggleScanAutomation();
 }
 
+async function loadIntelligence() {
+  try {
+    state.intelligence = await api("/api/intelligence");
+  } catch (_) {
+    /* optional until first scan */
+  }
+}
+
+function renderHealth() {
+  const el = $("#view-health");
+  if (!el) return;
+  const intel = state.intelligence;
+  if (!intel?.health) {
+    el.innerHTML = `<div class="empty">Run a scan, then open Health for your score and forecasts.</div>`;
+    return;
+  }
+  const h = intel.health;
+  const dims = (h.dimensions || [])
+    .map(
+      (d) => `<div class="card"><h3>${escapeHtml(d.name)} · ${d.score}</h3><p>${escapeHtml(d.detail || "")}</p>
+      <div class="bar"><i style="width:${d.score}%"></i></div></div>`
+    )
+    .join("");
+  const preds = (intel.predictive || [])
+    .map((p) => `<div class="card"><h3>${escapeHtml(p.title)}</h3><p>${escapeHtml(p.body)}</p><span class="hint">${escapeHtml(p.severity)}</span></div>`)
+    .join("");
+  const alerts = (intel.proactive || [])
+    .map(
+      (a) => `<div class="card"><h3>${escapeHtml(a.title)}</h3><p>${escapeHtml(a.explanation)}</p>
+      <p><strong>${escapeHtml(a.recommendation)}</strong></p></div>`
+    )
+    .join("");
+  const benches = (intel.benchmarks || [])
+    .map(
+      (b) => `<div class="card"><h3>${escapeHtml(b.cohort)}</h3>
+      <p>You ${fmtBytes(b.yourBytes)} · cohort avg ${fmtBytes(b.averageBytes)}</p>
+      <p>${escapeHtml(b.recommendation)}</p></div>`
+    )
+    .join("");
+  el.innerHTML = `
+    <div class="grid">
+      <div class="card wide">
+        <h3>Score ${h.overall} / 100</h3>
+        <p>${escapeHtml(h.headline)}</p>
+      </div>
+      ${dims}
+      <div class="card wide"><h3>Predictive insights</h3></div>
+      ${preds || `<div class="empty">Need more scan history for forecasts.</div>`}
+      <div class="card wide"><h3>Proactive alerts</h3></div>
+      ${alerts || `<div class="empty">No proactive alerts right now.</div>`}
+      ${benches ? `<div class="card wide"><h3>Cohort benchmarks</h3></div>${benches}` : ""}
+    </div>`;
+}
+
+function renderLearning() {
+  const el = $("#view-learning");
+  if (!el) return;
+  const articles = state.intelligence?.learning || [];
+  if (!articles.length) {
+    el.innerHTML = `<div class="empty">Loading learning articles…</div>`;
+    loadIntelligence().then(() => renderLearning());
+    return;
+  }
+  el.innerHTML = `<div class="grid">${articles
+    .map(
+      (a) => `<div class="card wide">
+      <h3>${escapeHtml(a.title)} <span class="hint">${escapeHtml(a.category)}</span></h3>
+      <p><strong>What:</strong> ${escapeHtml(a.what)}</p>
+      <p><strong>Why created:</strong> ${escapeHtml(a.whyCreated)}</p>
+      <p><strong>Why safe:</strong> ${escapeHtml(a.whySafe)}</p>
+      <p><strong>When to delete:</strong> ${escapeHtml(a.whenDelete)}</p>
+      <p><strong>After:</strong> ${escapeHtml(a.afterDelete)}</p>
+      <button class="btn small" data-ask-learn="${escapeHtml(a.title)}">Ask Stoguard about this</button>
+    </div>`
+    )
+    .join("")}</div>`;
+  el.querySelectorAll("[data-ask-learn]").forEach((btn) => {
+    btn.onclick = () => {
+      setView("ask");
+      const input = $("#chat-input");
+      if (input) {
+        input.value = `Explain ${btn.dataset.askLearn} like a teacher — what it is, when to delete, what happens after.`;
+        input.focus();
+      }
+    };
+  });
+}
+
+function renderAutomation() {
+  const el = $("#view-automation");
+  if (!el) return;
+  if (!allows("automation") && state.tier) {
+    el.innerHTML = `<div class="empty">Automation schedules are a Pro feature. Health score still works on Free.</div>`;
+  }
+  const auto = state.intelligence?.automation || { rules: [], cloudOptIn: false };
+  const rules = (auto.rules || [])
+    .map(
+      (r) => `<div class="card" style="display:flex;justify-content:space-between;align-items:center;gap:12px">
+      <div>
+        <h3>${escapeHtml(r.name)}</h3>
+        <p class="hint">${escapeHtml(r.schedule)} · ${escapeHtml(r.action)} · min ${fmtBytes(r.minBytes)}</p>
+      </div>
+      <label><input type="checkbox" data-rule="${escapeHtml(r.id)}" ${r.enabled ? "checked" : ""}/> On</label>
+    </div>`
+    )
+    .join("");
+  el.innerHTML = `
+    <div class="grid">
+      <div class="card wide">
+        <h3>Automation</h3>
+        <p>Scheduled maintenance hints. Destructive cleans never run without your review in the findings list.</p>
+        <label style="display:flex;gap:8px;align-items:center;margin-top:12px">
+          <input type="checkbox" id="cloud-optin" ${auto.cloudOptIn ? "checked" : ""}/>
+          Opt in to anonymous cohort benchmarks (compared on-device for now)
+        </label>
+      </div>
+      ${rules || `<div class="empty">No rules loaded.</div>`}
+      <div class="card wide">
+        <button class="btn primary" id="save-automation">Save automation</button>
+      </div>
+    </div>`;
+  const save = $("#save-automation");
+  if (save) {
+    save.onclick = async () => {
+      const next = {
+        cloudOptIn: !!$("#cloud-optin")?.checked,
+        rules: (auto.rules || []).map((r) => ({
+          ...r,
+          enabled: !!el.querySelector(`[data-rule="${r.id}"]`)?.checked,
+        })),
+      };
+      try {
+        state.intelligence = state.intelligence || {};
+        state.intelligence.automation = await api("/api/automation", {
+          method: "POST",
+          body: JSON.stringify(next),
+        });
+        await loadIntelligence();
+        toast("Automation saved");
+        renderAutomation();
+        renderHealth();
+      } catch (e) {
+        toast(e.message);
+      }
+    };
+  }
+}
+
 function renderOverview() {
   const el = $("#view-overview");
   if (!state.scan) {
@@ -279,12 +441,22 @@ function renderOverview() {
   }
   const s = state.scan;
   const d = state.doctor;
+  const h = state.intelligence?.health;
   const top = s.items.slice(0, 8);
   const cats = Object.entries(s.categoryTotals || {})
     .sort((a, b) => b[1] - a[1])
     .slice(0, 6);
   el.innerHTML = `
     <div class="grid">
+      ${
+        h
+          ? `<div class="card">
+        <h3>Health ${h.overall}/100</h3>
+        <p>${escapeHtml(h.headline)}</p>
+        <button class="btn small" id="goto-health">Open Health</button>
+      </div>`
+          : ""
+      }
       <div class="card wide">
         <h3>${escapeHtml(d?.headline || "Scan complete")}</h3>
         <p>${(d?.summaryLines || []).map(escapeHtml).join(" · ")}</p>
@@ -323,6 +495,11 @@ function renderOverview() {
 }
 
 
+function packageCachesFromScan() {
+  const items = state.scan?.items || [];
+  return items.filter((it) => (it.category || "") === "Package Managers");
+}
+
 function renderPackages() {
   const el = $("#view-packages");
   if (!el) return;
@@ -330,25 +507,131 @@ function renderPackages() {
     el.innerHTML = `<div class="empty">Package Finder is a Pro feature.</div>`;
     return;
   }
+  if (state.packagesLoading && !(state.packages || []).length) {
+    el.innerHTML = `<div class="empty">Scanning Homebrew, npm, pipx, and CLI installs…<br/><span class="hint">This lists what you installed — not just caches.</span></div>`;
+    return;
+  }
+  if (state.packagesError && !(state.packages || []).length) {
+    el.innerHTML = `<div class="empty">Couldn’t load installed packages.<br/><strong>${escapeHtml(state.packagesError)}</strong><br/><br/>
+      <button class="btn primary" id="btn-reload-packages">Try again</button></div>`;
+    const btn = $("#btn-reload-packages");
+    if (btn) btn.onclick = () => loadPackages({ force: true });
+    return;
+  }
   const list = state.packages || [];
-  if (!list.length) {
-    el.innerHTML = `<div class="empty">No sizable packages found yet — open this tab to scan installs.</div>`;
+  const caches = packageCachesFromScan();
+  if (!list.length && !caches.length) {
+    el.innerHTML = `<div class="empty">
+      No installed packages measured yet.<br/><br/>
+      <button class="btn primary" id="btn-reload-packages">Scan installs now</button>
+      <p class="hint" style="margin-top:12px">Looks for Homebrew Cellar, npm globals, pipx, Cargo bins, and ~/.local/bin.</p>
+    </div>`;
+    const btn = $("#btn-reload-packages");
+    if (btn) btn.onclick = () => loadPackages({ force: true });
     return;
   }
   const total = list.reduce((a, p) => a + (p.sizeBytes || 0), 0);
-  el.innerHTML = `
-    <p class="hint" style="margin-bottom:12px">${list.length} packages · ${fmtBytes(total)} — each row shows what it is and how much space it uses.</p>
-    <div class="list">${list.map((p) => `
+  const cacheTotal = caches.reduce((a, it) => a + (it.sizeBytes || 0), 0);
+  const installRows = list.length
+    ? list.map((p, idx) => {
+        const def = p.definition || "Installed developer package.";
+        return `
     <div class="row">
       <div>
-        <div class="name">${escapeHtml(p.name)} <span class="badge check">${escapeHtml(p.source)}</span></div>
-        <div class="meta" style="color:var(--text, inherit);font-weight:500">${escapeHtml(p.definition || "Installed developer package.")}</div>
+        <div class="name">
+          ${escapeHtml(p.name)}
+          <button class="info-btn" type="button" title="What is this package?"
+            data-pkg-info="${idx}" aria-label="Why is ${escapeAttr(p.name)} installed?">i</button>
+          <span class="badge check">${escapeHtml(p.source)}</span>
+        </div>
+        <div class="pkg-def">${escapeHtml(def)}</div>
         <div class="meta">${escapeHtml(p.path)}</div>
         <div class="meta">${escapeHtml(p.detail || "")}${p.daysIdle != null && p.daysIdle >= 45 ? ` · idle ${p.daysIdle}d` : ""}</div>
       </div>
       <div class="size">${fmtBytes(p.sizeBytes)}</div>
       <button class="btn small" data-reveal="${escapeAttr(p.path)}">Reveal</button>
-    </div>`).join("")}</div>`;
+    </div>`;
+      }).join("")
+    : `<div class="empty">No Cellar / global installs matched yet — try Scan installs again.</div>`;
+
+  const cacheRows = caches.length
+    ? `<div class="card wide" style="margin-top:16px">
+        <h3>Package caches (from workstation scan)</h3>
+        <p class="hint">${caches.length} items · ${fmtBytes(cacheTotal)} — rebuildable caches, separate from installed formulae.</p>
+        <div class="list" style="margin-top:12px">${caches.map((it) => itemRow(it)).join("")}</div>
+      </div>`
+    : "";
+
+  el.innerHTML = `
+    <div class="card wide">
+      <h3>Installed packages</h3>
+      <p class="hint" style="margin-bottom:12px">${list.length} packages · ${fmtBytes(total)} — tap the <strong>i</strong> for why each one is installed.
+        ${state.packagesLoading ? " · refreshing…" : ""}
+        <button class="btn small" id="btn-reload-packages" style="margin-left:8px">Refresh</button>
+      </p>
+      <div class="list">${installRows}</div>
+    </div>
+    ${cacheRows}`;
+  const reload = $("#btn-reload-packages");
+  if (reload) reload.onclick = () => loadPackages({ force: true });
+  el.querySelectorAll("[data-pkg-info]").forEach((btn) => {
+    btn.onclick = (e) => {
+      e.stopPropagation();
+      const p = list[Number(btn.dataset.pkgInfo)];
+      if (!p) return;
+      showNotify({
+        title: `${p.name} — why is this installed?`,
+        body: packageWhy(p),
+        actions: [
+          { label: "OK", primary: true },
+          p.path
+            ? {
+                label: "Reveal on disk",
+                onClick: async () => {
+                  try {
+                    await api(`/api/reveal?path=${encodeURIComponent(p.path)}`);
+                  } catch (err) {
+                    toast(err.message);
+                  }
+                },
+              }
+            : null,
+        ].filter(Boolean),
+      });
+    };
+  });
+}
+
+/** Plain-English explanation: what it is, why you might have it, how to remove. */
+function packageWhy(p) {
+  const def = (p.definition || "Installed developer package.").trim();
+  const src = (p.source || "install").toLowerCase();
+  let why = "You (or a setup script) installed this as a developer tool.";
+  if (src.includes("homebrew")) {
+    why = "Installed with Homebrew — usually for a CLI, language runtime, or library you needed for a project.";
+  } else if (src.includes("npm")) {
+    why = "Installed globally with npm so the CLI is available in every project terminal.";
+  } else if (src.includes("pipx")) {
+    why = "Installed with pipx as an isolated Python CLI app (its own virtualenv).";
+  } else if (src.includes("cargo")) {
+    why = "Installed with Cargo as a Rust binary on your PATH.";
+  } else if (src.includes("user bin")) {
+    why = "Dropped into ~/.local/bin — a tool you installed manually for shell use.";
+  }
+  const remove =
+    p.detail ||
+    (src.includes("homebrew")
+      ? `Uninstall: brew uninstall ${p.name}`
+      : src.includes("npm")
+        ? `Uninstall: npm uninstall -g ${p.name}`
+        : src.includes("pipx")
+          ? `Uninstall: pipx uninstall ${p.name}`
+          : "Remove only if you are sure nothing depends on it.");
+  const idle =
+    p.daysIdle != null && p.daysIdle >= 45
+      ? `\n\nIdle ~${p.daysIdle} days — may be unused.`
+      : "";
+  return `What it is:\n${def}\n\nWhy it’s here:\n${why}\n\nDisk: ${fmtBytes(p.sizeBytes)}\nPath: ${p.path || "—"}\n\n${remove}${idle}`;
 }
 
 function renderDoctor() {
@@ -614,7 +897,10 @@ function render() {
   updateTierUI();
   renderHero();
   renderOverview();
+  renderHealth();
   renderDoctor();
+  renderLearning();
+  renderAutomation();
   renderDuplicates();
   renderAICleanup();
   renderPackages();
@@ -623,6 +909,8 @@ function render() {
   renderFleet();
   renderAccount();
   bindActions();
+  const gh = $("#goto-health");
+  if (gh) gh.onclick = () => setView("health");
 }
 
 function bindActions() {
@@ -708,12 +996,33 @@ async function loadFleet() {
 }
 
 
-async function loadPackages() {
+async function loadPackages({ force = false } = {}) {
   if (!allows("packages")) { renderPackages(); bindActions(); return; }
-  try { state.packages = await api("/api/packages"); }
-  catch (e) { state.packages = []; toast(e.message); }
+  if (state.packagesLoading) return;
+  if (state.packagesLoaded && !force && (state.packages || []).length) {
+    renderPackages();
+    bindActions();
+    return;
+  }
+  state.packagesLoading = true;
+  state.packagesError = null;
   renderPackages();
-  bindActions();
+  try {
+    state.packages = await api("/api/packages");
+    state.packagesLoaded = true;
+    if (!(state.packages || []).length) {
+      toast("Package Finder finished — no sizable installs matched thresholds");
+    } else {
+      toast(`Package Finder: ${state.packages.length} installs · ${fmtBytes(state.packages.reduce((a, p) => a + (p.sizeBytes || 0), 0))}`);
+    }
+  } catch (e) {
+    state.packagesError = e.message || "Request failed";
+    toast(`Package Finder failed: ${state.packagesError}`);
+  } finally {
+    state.packagesLoading = false;
+    renderPackages();
+    bindActions();
+  }
 }
 
 async function loadAICleanup() {
@@ -806,10 +1115,13 @@ async function runScan({ source = "manual" } = {}) {
       }
     }
     state.history = await api("/api/history");
+    await loadIntelligence();
 
     const summary = `Found ${state.scan.items.length} findings · ${fmtBytes(state.scan.safeBytes)} safe to clean · ${fmtBytes(state.scan.checkBytes)} to review.`;
     toast(summary);
     notifyOS("Stoguard — scan complete", summary);
+    // Prefetch installs so Package Finder isn’t empty when opened.
+    if (allows("packages")) loadPackages({ force: true });
     render();
 
     if (fromAuto || state.scanAutomation) {
@@ -850,7 +1162,29 @@ async function runScan({ source = "manual" } = {}) {
   }
 }
 
+const THEME_KEY = "stoguard.theme";
+
+function currentTheme() {
+  return document.documentElement.getAttribute("data-theme") === "light" ? "light" : "dark";
+}
+
+function applyTheme(theme) {
+  const next = theme === "light" ? "light" : "dark";
+  document.documentElement.setAttribute("data-theme", next);
+  try { localStorage.setItem(THEME_KEY, next); } catch (_) {}
+  const btn = $("#theme-toggle");
+  if (btn) btn.textContent = next === "light" ? "Dark mode" : "Light mode";
+}
+
+function toggleTheme() {
+  applyTheme(currentTheme() === "light" ? "dark" : "light");
+}
+
 async function init() {
+  applyTheme(currentTheme());
+  const themeBtn = $("#theme-toggle");
+  if (themeBtn) themeBtn.onclick = toggleTheme;
+
   document.querySelectorAll(".nav").forEach((b) => {
     b.onclick = () => setView(b.dataset.view);
   });
@@ -860,6 +1194,11 @@ async function init() {
   });
   if (state.scanAutomation) {
     setScanAutomation(true);
+  }
+  // Deep-link: http://127.0.0.1:8787/#packages
+  const hashView = (location.hash || "").replace(/^#/, "");
+  if (hashView && titles[hashView]) {
+    state.view = hashView;
   }
   $("#chat-form").onsubmit = async (e) => {
     e.preventDefault();
@@ -896,7 +1235,12 @@ async function init() {
   } catch {
     $("#platform-label").textContent = "offline";
   }
-  render();
+  if (state.view && state.view !== "overview") {
+    setView(state.view);
+  } else {
+    render();
+    if (allows("packages")) loadPackages({ force: true });
+  }
 }
 
 init();

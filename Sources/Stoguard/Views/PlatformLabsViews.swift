@@ -224,53 +224,191 @@ struct DuplicatesView: View {
 
 struct PackageFinderView: View {
     @EnvironmentObject var model: AppModel
+
+    private var cacheItems: [ScanItem] {
+        model.items(for: .packageManagers).sorted { $0.sizeBytes > $1.sizeBytes }
+    }
+
     var body: some View {
         labList(
-            title: "Package Finder",
-            subtitle: "Every sizable install with a definition and how much disk it uses — so you know what you installed and why.",
+            title: "Packages",
+            subtitle: "Installed Homebrew / npm / pipx tools (with definitions) plus rebuildable package caches.",
             loading: model.isLoadingPackages,
-            reload: { model.loadPackageFinder() }
-        ) {
-            if model.packagesLoaded && model.packageFindings.isEmpty {
-                Text("No sizable installed packages found.").foregroundStyle(Theme.secondaryText)
+            reload: {
+                model.loadPackageFinder()
+                if !model.scannedSections.contains(.packageManagers) {
+                    model.scan(section: .packageManagers)
+                }
             }
-            if model.packagesLoaded && !model.packageFindings.isEmpty {
+        ) {
+            Text("Installed packages")
+                .font(.system(size: 15, weight: .semibold))
+
+            if model.isLoadingPackages && model.packageFindings.isEmpty {
+                Text("Scanning Homebrew Cellar and global installs…")
+                    .font(.caption)
+                    .foregroundStyle(Theme.secondaryText)
+            }
+
+            if model.packagesLoaded && model.packageFindings.isEmpty {
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("No Homebrew / npm / pipx installs matched yet.")
+                        .foregroundStyle(Theme.secondaryText)
+                    Text("Tap Refresh — this reads /opt/homebrew/Cellar and global node_modules.")
+                        .font(.caption)
+                        .foregroundStyle(Theme.tertiaryText)
+                }
+            }
+
+            if !model.packageFindings.isEmpty {
                 let total = model.packageFindings.reduce(Int64(0)) { $0 + $1.sizeBytes }
-                Text("\(model.packageFindings.count) packages · \(ByteText.string(total)) total")
+                Text("\(model.packageFindings.count) installs · \(ByteText.string(total))")
                     .font(.callout)
                     .foregroundStyle(Theme.secondaryText)
             }
+
             ForEach(model.packageFindings) { p in
-                VStack(alignment: .leading, spacing: 6) {
-                    HStack(alignment: .firstTextBaseline) {
-                        Text(p.name).font(.system(size: 13, weight: .semibold))
-                        Text(p.source)
-                            .font(.system(size: 9, weight: .bold))
-                            .foregroundStyle(Theme.navy)
-                            .padding(.horizontal, 6).padding(.vertical, 2)
-                            .background(Theme.navy.opacity(0.1), in: Capsule())
-                        Spacer()
-                        Text(p.sizeText)
-                            .font(.system(size: 13, weight: .semibold).monospacedDigit())
+                PackageInstallRow(package: p)
+            }
+
+            Text("Package caches")
+                .font(.system(size: 15, weight: .semibold))
+                .padding(.top, 12)
+            Text("Rebuildable download/build caches (safe to clean).")
+                .font(.caption)
+                .foregroundStyle(Theme.secondaryText)
+
+            if cacheItems.isEmpty {
+                Text(model.scannedSections.contains(.packageManagers)
+                     ? "No package caches found."
+                     : "Run Refresh to measure npm / Homebrew / Go caches.")
+                    .font(.caption)
+                    .foregroundStyle(Theme.secondaryText)
+                    .padding(12)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .elevatedCard(radius: 10)
+            } else {
+                ForEach(cacheItems) { item in
+                    VStack(alignment: .leading, spacing: 6) {
+                        HStack {
+                            Text(item.name).font(.system(size: 13, weight: .semibold))
+                            SafetyChip(safety: item.safety, libraryRisk: item.isLibraryProfileRisk)
+                            Spacer()
+                            Text(item.sizeText).font(.caption.monospacedDigit())
+                        }
+                        Text(item.path).font(.system(size: 10).monospaced()).foregroundStyle(Theme.secondaryText).lineLimit(1)
+                        Text(item.note).font(.caption).foregroundStyle(Theme.secondaryText)
+                        HStack {
+                            Button("Reveal") { model.revealInFinder(item.path) }.buttonStyle(.link).font(.caption)
+                            if item.safety == .safe || item.safety == .check {
+                                Button("Move to Trash…") { model.requestTrash(item) }.buttonStyle(.link).font(.caption)
+                            }
+                        }
                     }
-                    Text(p.definition)
-                        .font(.system(size: 12))
-                        .foregroundStyle(Theme.primaryText)
-                    Text(p.path).font(.system(size: 10).monospaced()).foregroundStyle(Theme.secondaryText).lineLimit(1)
-                    Text(p.detail).font(.caption).foregroundStyle(Theme.tertiaryText)
-                    if let days = p.daysIdle, days >= 45 {
-                        Text("Idle ~\(days) days — likely unused")
-                            .font(.caption.weight(.semibold))
-                            .foregroundStyle(Theme.dangerRed)
-                    }
-                    HStack {
-                        Button("Reveal") { model.revealInFinder(p.path) }.buttonStyle(.link).font(.caption)
-                    }
+                    .padding(12).elevatedCard(radius: 10)
                 }
-                .padding(12).elevatedCard(radius: 10)
             }
         }
-        .onAppear { if !model.packagesLoaded { model.loadPackageFinder() } }
+        .onAppear {
+            model.loadPackageFinder()
+            if !model.scannedSections.contains(.packageManagers) {
+                model.scan(section: .packageManagers)
+            }
+        }
+    }
+}
+
+
+private struct PackageInstallRow: View {
+    @EnvironmentObject var model: AppModel
+    let package: PackageFinding
+    @State private var showWhy = false
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack(alignment: .firstTextBaseline, spacing: 8) {
+                Text(package.name).font(.system(size: 13, weight: .semibold))
+                Button {
+                    showWhy = true
+                } label: {
+                    Image(systemName: "info.circle.fill")
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundStyle(Theme.navy.opacity(0.85))
+                        .accessibilityLabel("Why is \(package.name) installed?")
+                }
+                .buttonStyle(.plain)
+                .help("What this package is and why it’s installed")
+                Text(package.source)
+                    .font(.system(size: 9, weight: .bold))
+                    .foregroundStyle(Theme.navy)
+                    .padding(.horizontal, 6).padding(.vertical, 2)
+                    .background(Theme.navy.opacity(0.1), in: Capsule())
+                Spacer()
+                Text(package.sizeText)
+                    .font(.system(size: 13, weight: .semibold).monospacedDigit())
+            }
+            Text(package.definition)
+                .font(.system(size: 12))
+                .foregroundStyle(Theme.primaryText)
+            Text(package.path).font(.system(size: 10).monospaced()).foregroundStyle(Theme.secondaryText).lineLimit(1)
+            Text(package.detail).font(.caption).foregroundStyle(Theme.tertiaryText)
+            if let days = package.daysIdle, days >= 45 {
+                Text("Idle ~\(days) days — likely unused")
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(Theme.dangerRed)
+            }
+            HStack {
+                Button("Reveal") { model.revealInFinder(package.path) }.buttonStyle(.link).font(.caption)
+                Button("Why installed?") { showWhy = true }.buttonStyle(.link).font(.caption)
+            }
+        }
+        .padding(12).elevatedCard(radius: 10)
+        .popover(isPresented: $showWhy, arrowEdge: .trailing) {
+            VStack(alignment: .leading, spacing: 10) {
+                Text(package.name)
+                    .font(.system(size: 15, weight: .bold))
+                Text("What it is")
+                    .font(.system(size: 11, weight: .semibold))
+                    .foregroundStyle(Theme.secondaryText)
+                Text(package.definition)
+                    .font(.system(size: 13))
+                    .fixedSize(horizontal: false, vertical: true)
+                Text("Why it’s here")
+                    .font(.system(size: 11, weight: .semibold))
+                    .foregroundStyle(Theme.secondaryText)
+                Text(PackageWhy.reason(for: package))
+                    .font(.system(size: 13))
+                    .fixedSize(horizontal: false, vertical: true)
+                Text("Disk · \(package.sizeText)")
+                    .font(.caption.monospacedDigit())
+                    .foregroundStyle(Theme.secondaryText)
+                Text(package.detail)
+                    .font(.caption)
+                    .foregroundStyle(Theme.tertiaryText)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            .padding(16)
+            .frame(width: 320, alignment: .leading)
+        }
+    }
+}
+
+enum PackageWhy {
+    static func reason(for p: PackageFinding) -> String {
+        switch p.source.lowercased() {
+        case let s where s.contains("homebrew"):
+            return "Installed with Homebrew — usually a CLI, language runtime, or library you needed for a project."
+        case let s where s.contains("npm"):
+            return "Installed globally with npm so the CLI is available in every project terminal."
+        case let s where s.contains("pipx"):
+            return "Installed with pipx as an isolated Python CLI app (its own virtualenv)."
+        case let s where s.contains("cargo"):
+            return "Installed with Cargo as a Rust binary on your PATH."
+        case let s where s.contains("user bin"):
+            return "Dropped into ~/.local/bin — a tool you installed manually for shell use."
+        default:
+            return "You (or a setup script) installed this as a developer tool. Review whether you still use it before removing."
+        }
     }
 }
 
@@ -317,11 +455,14 @@ struct AgentToolsView: View {
 struct AIModelsView: View {
     @EnvironmentObject var model: AppModel
     var body: some View {
-        labList(title: "Local AI Model Manager", subtitle: "Ollama, Hugging Face, LM Studio, ComfyUI, Whisper, llama.cpp.", loading: model.isLoadingModels, reload: { model.loadAIModels() }) {
+        labList(title: "Local AI Model Manager", subtitle: "Ollama, Hugging Face, LM Studio, ComfyUI, Whisper, llama.cpp — archive, dedupe, reclaim.", loading: model.isLoadingModels, reload: { model.loadAIModels() }) {
             let total = model.aiModels.reduce(Int64(0)) { $0 + $1.sizeBytes }
             if model.modelsLoaded {
                 Text("Total \(ByteText.string(total)) across \(model.aiModels.count) entries")
                     .font(.callout).foregroundStyle(Theme.secondaryText)
+                Text(AIModelOps.duplicatesSummary(models: model.aiModels))
+                    .font(.caption).foregroundStyle(Theme.secondaryText)
+                    .padding(.bottom, 4)
             }
             ForEach(model.aiModels) { m in
                 VStack(alignment: .leading, spacing: 6) {
@@ -335,6 +476,8 @@ struct AIModelsView: View {
                             .font(.caption).foregroundStyle(Theme.secondaryText)
                     }
                     Text(m.removeHint).font(.caption).foregroundStyle(Theme.tertiaryText)
+                    Text(AIModelOps.archiveAdvice(for: m))
+                        .font(.caption2).foregroundStyle(Theme.tertiaryText)
                     HStack {
                         Button("Reveal") { model.revealInFinder(m.path) }.buttonStyle(SecondaryOutlineButtonStyle())
                         Button("Move to Trash…") { model.trashAIModel(m) }.buttonStyle(DestructivePillButtonStyle())
@@ -378,7 +521,7 @@ struct CodebaseView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 12) {
-                title("Codebase Analyzer", subtitle: "Point at a repository — heavy folders and binaries.")
+                title("Repository Intelligence", subtitle: "Heavy folders, large binaries, and reclaim opportunities in one repo.")
                 HStack {
                     TextField("Repository path", text: $model.codebasePath)
                         .textFieldStyle(.roundedBorder)
@@ -387,6 +530,30 @@ struct CodebaseView: View {
                         .disabled(model.isLoadingCodebase)
                 }
                 if model.isLoadingCodebase { ProgressView() }
+                if model.repoInsightTotal > 0 {
+                    Text("Repo size ~\(ByteText.string(model.repoInsightTotal)) · \(model.repoInsights.count) insights")
+                        .font(.callout).foregroundStyle(Theme.secondaryText)
+                }
+                if !model.repoInsights.isEmpty {
+                    Text("Intelligence").font(.system(size: 14, weight: .semibold))
+                    ForEach(model.repoInsights) { r in
+                        VStack(alignment: .leading, spacing: 4) {
+                            HStack {
+                                Text(r.title).font(.system(size: 13, weight: .semibold))
+                                Text(r.kind.uppercased())
+                                    .font(.system(size: 9, weight: .bold))
+                                    .foregroundStyle(Theme.secondaryText)
+                                Spacer()
+                                Text(ByteText.string(r.bytes)).font(.caption.monospacedDigit())
+                            }
+                            Text(r.detail).font(.caption).foregroundStyle(Theme.secondaryText)
+                        }
+                        .padding(12).elevatedCard(radius: 10)
+                    }
+                }
+                if !model.codebaseFindings.isEmpty {
+                    Text("Analyzer findings").font(.system(size: 14, weight: .semibold)).padding(.top, 4)
+                }
                 ForEach(model.codebaseFindings) { f in
                     VStack(alignment: .leading, spacing: 4) {
                         HStack {
@@ -439,7 +606,7 @@ struct RulesPluginsView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 12) {
-                title("Rules & Plugins", subtitle: "Versioned cloud rules + drop-in technology plugins (macOS/Windows/Linux schema).")
+                title("Rules & Plugins", subtitle: "Versioned cloud rules + drop-in JSON plugins. Full schema: docs/PLUGIN_SDK.md")
                 Text("Active rules: \(model.ruleCount)")
                     .font(.headline)
                 if let meta = model.rulesMeta {

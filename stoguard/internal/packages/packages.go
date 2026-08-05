@@ -2,9 +2,11 @@ package packages
 
 import (
 	"os"
+	"os/exec"
 	"path/filepath"
 	"runtime"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 
@@ -71,7 +73,7 @@ func brewCellar(root string) []Finding {
 			}
 			path := filepath.Join(root, formula, v.Name())
 			size := dirSize(path)
-			if size < 1_000_000 {
+			if size < 500_000 {
 				continue
 			}
 			out = append(out, withIdle(Finding{
@@ -224,6 +226,10 @@ func withIdle(f Finding, path string) Finding {
 }
 
 func dirSize(root string) int64 {
+	// Prefer du -sk (fast) over walking every file — Cellar trees are huge.
+	if n, ok := duSK(root); ok {
+		return n
+	}
 	var total int64
 	_ = filepath.WalkDir(root, func(path string, d os.DirEntry, err error) error {
 		if err != nil || d.IsDir() {
@@ -237,4 +243,21 @@ func dirSize(root string) int64 {
 		return nil
 	})
 	return total
+}
+
+func duSK(root string) (int64, bool) {
+	cmd := exec.Command("du", "-sk", root)
+	out, err := cmd.Output()
+	if err != nil {
+		return 0, false
+	}
+	fields := strings.Fields(string(out))
+	if len(fields) < 1 {
+		return 0, false
+	}
+	kb, err := strconv.ParseInt(fields[0], 10, 64)
+	if err != nil {
+		return 0, false
+	}
+	return kb * 1024, true
 }

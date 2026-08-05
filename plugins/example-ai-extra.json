@@ -1,0 +1,24 @@
+{
+  "id": "example-ai-extra",
+  "name": "Extra AI tool caches",
+  "version": "1.0.0",
+  "platforms": ["any"],
+  "rules": [
+    {
+      "id": "plugin-cursor-cache",
+      "name": "Cursor cache",
+      "path": "~/Library/Caches/Cursor",
+      "category": "AI Tools",
+      "safety": "safe",
+      "note": "Plugin example — Cursor app cache. Rebuildable; does not remove settings."
+    },
+    {
+      "id": "plugin-vllm-cache",
+      "name": "vLLM / Hugging Face hub cache",
+      "path": "~/.cache/huggingface/hub",
+      "category": "AI Tools",
+      "safety": "check",
+      "note": "Model blobs used by transformers/vLLM. Re-downloaded on next use."
+    }
+  ]
+}

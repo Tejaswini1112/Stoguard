@@ -56,6 +56,11 @@ struct ItemRow: View {
                         .font(.system(size: 10, weight: .medium))
                         .foregroundStyle(days >= 45 ? Theme.navy : Theme.tertiaryText)
                 }
+                if let note = model.preferenceMemory.note(for: PreferenceMemory.key(for: item)) {
+                    Text(note)
+                        .font(.system(size: 10, weight: .medium))
+                        .foregroundStyle(Theme.navy)
+                }
             }
 
             Spacer(minLength: 8)
@@ -83,6 +88,9 @@ struct ItemRow: View {
 
             switch item.safety {
             case .safe, .check:
+                Button("Keep") { model.markKeep(item) }
+                    .buttonStyle(.link)
+                    .font(.system(size: 11))
                 Button("Move to Trash…") { model.requestTrash(item) }
                     .buttonStyle(.link)
                     .font(.system(size: 11))
