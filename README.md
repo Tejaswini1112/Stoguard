@@ -61,6 +61,9 @@ go run .                 # opens http://127.0.0.1:8787
 ## Repository
 **https://github.com/Tejaswini1112/Stoguard**
 
+### Upstream sync (VACS → Stoguard)
+When [prajwal2308/VACS](https://github.com/prajwal2308/VACS) changes, Stoguard auto-checks every 6 hours and opens a PR. Details: [docs/UPSTREAM_SYNC.md](docs/UPSTREAM_SYNC.md). Manual: `./scripts/sync-from-vacs.sh`.
+
 ## Privacy
 Runs locally. No telemetry by default. See [docs/PRIVACY.md](docs/PRIVACY.md).
 
