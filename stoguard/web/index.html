@@ -67,9 +67,15 @@
       <section id="view-doctor" class="view"></section>
       <section id="view-ask" class="view">
         <div class="chat">
+          <div class="chat-toolbar">
+            <button type="button" class="btn small" id="btn-new-chat">New chat</button>
+            <label class="btn small ghost" for="chat-attach" title="Attach a screenshot for your notes (stored locally in this browser)">Attach image</label>
+            <input type="file" id="chat-attach" accept="image/*" hidden />
+            <span class="hint" id="chat-attach-label"></span>
+          </div>
           <div id="chat-log" class="chat-log"></div>
           <form id="chat-form" class="chat-form">
-            <input id="chat-input" placeholder="Why is my disk full? Explain DerivedData. What’s my health score?" autocomplete="off" />
+            <input id="chat-input" placeholder="Files in use? Why is my disk full? Explain Edge GPUCache…" autocomplete="off" />
             <button class="btn primary" type="submit">Ask</button>
           </form>
         </div>

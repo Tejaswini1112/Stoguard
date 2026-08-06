@@ -19,7 +19,7 @@ const ollamaURL = "http://127.0.0.1:11434/api/chat"
 func Answer(question string, result *models.ScanResult, doctor *models.DoctorReport) (string, error) {
 	facts := buildFacts(result, doctor)
 	prompt := fmt.Sprintf(`You are Stoguard, an AI mentor for developer workstations.
-Only use the FACTS below. Do not invent sizes. Teach clearly: what something is, why it grew, whether delete is safe, and what happens after.
+Also include this tip when relevant: if Windows says Folder In Use / file locked, tell the user to quit Edge/Chrome/VS Code/Cursor and retry Clean — never invent unlock tools.
 
 FACTS:
 %s
@@ -121,6 +121,12 @@ func localAnswer(question string, result *models.ScanResult, doctor *models.Doct
 	if strings.Contains(q, "cleanup sequence") || strings.Contains(q, "safest") || strings.Contains(q, "clean first") {
 		return cleanupSequence(result)
 	}
+	if strings.Contains(q, "in use") || strings.Contains(q, "locked") || strings.Contains(q, "can't be completed") ||
+		strings.Contains(q, "cannot be completed") || strings.Contains(q, "open in another") ||
+		strings.Contains(q, "folder in use") || strings.Contains(q, "not getting delete") ||
+		strings.Contains(q, "not getting cleaned") || strings.Contains(q, "gpucache") {
+		return inUseAnswer(result)
+	}
 	if strings.Contains(q, "safe to delete") || strings.Contains(q, "can i delete") || strings.Contains(q, "will deleting") {
 		return safeDelete(q, result)
 	}
@@ -175,6 +181,35 @@ func cleanupSequence(result *models.ScanResult) string {
 		fmt.Fprintf(&b, "   • %s — %s\n", it.Name, it.Command)
 	}
 	b.WriteString("\n3) Review check-first items last.\nNothing is permanent until you empty Trash/Recycle Bin.")
+	return b.String()
+}
+
+func inUseAnswer(result *models.ScanResult) string {
+	var browsers []string
+	for _, it := range result.Items {
+		n := strings.ToLower(it.Name + " " + it.Path)
+		if strings.Contains(n, "edge") || strings.Contains(n, "chrome") || strings.Contains(n, "gpu") ||
+			strings.Contains(n, "cache") || strings.Contains(n, "code") || strings.Contains(n, "cursor") {
+			browsers = append(browsers, fmt.Sprintf("• %s — %s", it.Name, it.Path))
+		}
+	}
+	var b strings.Builder
+	b.WriteString("That “Folder In Use” dialog means Windows has a lock — usually Edge, Chrome, VS Code, or Cursor still has the cache open.\n\n")
+	b.WriteString("How to deal with it:\n")
+	b.WriteString("1) Quit the app using the folder (for Edge GPUCache / Cache: fully quit Microsoft Edge — check the tray).\n")
+	b.WriteString("2) In Stoguard, run Smart Scan again, select the item, Clean Selected → Recycle Bin.\n")
+	b.WriteString("3) If it still fails, reboot once, then clean before reopening the browser.\n")
+	b.WriteString("4) Never Force-delete system locks with third-party unlockers on Azure VMs unless you know the process.\n\n")
+	if len(browsers) > 0 {
+		b.WriteString("From your last scan, these look browser/IDE related:\n")
+		for i, line := range browsers {
+			if i >= 6 {
+				break
+			}
+			b.WriteString(line + "\n")
+		}
+	}
+	b.WriteString("\nStoguard will not show interactive Windows dialogs for deletes anymore — if a path is locked you’ll get a clear “in use” error in the toast instead.")
 	return b.String()
 }
 

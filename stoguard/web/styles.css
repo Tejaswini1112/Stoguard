@@ -301,6 +301,7 @@ main { padding: 28px 32px 48px; overflow: auto; }
 .child button { font-size: 0.75rem; }
 
 .chat { display: flex; flex-direction: column; gap: 14px; max-width: 820px; }
+.chat-toolbar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
 .chat-log {
   min-height: 360px; max-height: 55vh; overflow: auto;
   background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius);

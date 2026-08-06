@@ -8,29 +8,58 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"syscall"
 
 	"github.com/stoguard/stoguard/internal/platform"
 )
 
 func moveOSDetailed(path string) (osResult, error) {
+	// Prefer silent VB Recycle Bin — do NOT use Shell InvokeVerb("delete"):
+	// that can show interactive "Folder In Use" dialogs in the user's session.
 	if err := sendToRecycleBinVB(path); err == nil {
 		return osResult{Method: "recycle_bin"}, nil
 	} else {
 		vbErr := err
-		if err := sendToRecycleBinShell(path); err == nil {
-			return osResult{Method: "recycle_bin"}, nil
-		} else {
-			shellErr := err
-			recycle := filepath.Join(platform.DataDir(), "Recycle")
-			if mkErr := os.MkdirAll(recycle, 0o755); mkErr != nil {
-				return osResult{}, fmt.Errorf("Recycle Bin failed (%v; %v) and staging failed: %w", vbErr, shellErr, mkErr)
-			}
-			if err := moveUnique(path, recycle); err != nil {
-				return osResult{}, fmt.Errorf("Recycle Bin failed (%v; %v); staging failed: %w", vbErr, shellErr, err)
-			}
-			return osResult{Method: "staging", Destination: recycle}, nil
+		if isSharingViolation(vbErr) || isSharingViolationMsg(vbErr.Error()) {
+			return osResult{}, fmt.Errorf(
+				"in use: close the app locking this path (Edge/Chrome/VS Code/Cursor), then Clean again — %v",
+				vbErr,
+			)
 		}
+		recycle := filepath.Join(platform.DataDir(), "Recycle")
+		if mkErr := os.MkdirAll(recycle, 0o755); mkErr != nil {
+			return osResult{}, fmt.Errorf("Recycle Bin failed (%v) and staging failed: %w", vbErr, mkErr)
+		}
+		if err := moveUnique(path, recycle); err != nil {
+			if isSharingViolation(err) || isSharingViolationMsg(err.Error()) {
+				return osResult{}, fmt.Errorf(
+					"in use: close Edge/Chrome (or the app using GPUCache/Cache), then retry — %v",
+					err,
+				)
+			}
+			return osResult{}, fmt.Errorf("Recycle Bin failed (%v); staging failed: %w", vbErr, err)
+		}
+		return osResult{Method: "staging", Destination: recycle}, nil
 	}
+}
+
+func isSharingViolation(err error) bool {
+	if err == nil {
+		return false
+	}
+	if errno, ok := err.(syscall.Errno); ok {
+		// ERROR_SHARING_VIOLATION = 32, ERROR_LOCK_VIOLATION = 33
+		return errno == 32 || errno == 33
+	}
+	return false
+}
+
+func isSharingViolationMsg(s string) bool {
+	s = strings.ToLower(s)
+	return strings.Contains(s, "sharing violation") ||
+		strings.Contains(s, "being used by another") ||
+		strings.Contains(s, "in use") ||
+		strings.Contains(s, "access is denied")
 }
 
 func powershellExe() string {
@@ -51,6 +80,7 @@ func runPowerShell(script string) (string, error) {
 		"-NoProfile",
 		"-NonInteractive",
 		"-ExecutionPolicy", "Bypass",
+		"-WindowStyle", "Hidden",
 		"-Command", script,
 	)
 	out, err := cmd.CombinedOutput()
@@ -66,12 +96,12 @@ func sendToRecycleBinVB(path string) error {
 	var ps string
 	if info.IsDir() {
 		ps = fmt.Sprintf(
-			`Add-Type -AssemblyName Microsoft.VisualBasic; [Microsoft.VisualBasic.FileIO.FileSystem]::DeleteDirectory('%s','OnlyErrorDialogs','SendToRecycleBin')`,
+			`$ErrorActionPreference='Stop'; Add-Type -AssemblyName Microsoft.VisualBasic; [Microsoft.VisualBasic.FileIO.FileSystem]::DeleteDirectory('%s','OnlyErrorDialogs','SendToRecycleBin')`,
 			escaped,
 		)
 	} else {
 		ps = fmt.Sprintf(
-			`Add-Type -AssemblyName Microsoft.VisualBasic; [Microsoft.VisualBasic.FileIO.FileSystem]::DeleteFile('%s','OnlyErrorDialogs','SendToRecycleBin')`,
+			`$ErrorActionPreference='Stop'; Add-Type -AssemblyName Microsoft.VisualBasic; [Microsoft.VisualBasic.FileIO.FileSystem]::DeleteFile('%s','OnlyErrorDialogs','SendToRecycleBin')`,
 			escaped,
 		)
 	}
@@ -80,32 +110,7 @@ func sendToRecycleBinVB(path string) error {
 		return fmt.Errorf("powershell VB recycle: %w (%s)", err, out)
 	}
 	if _, err := os.Lstat(path); err == nil {
-		return fmt.Errorf("path still exists after VB recycle")
-	}
-	return nil
-}
-
-func sendToRecycleBinShell(path string) error {
-	escaped := strings.ReplaceAll(path, "'", "''")
-	ps := fmt.Sprintf(`
-$ErrorActionPreference = 'Stop'
-$p = '%s'
-if (-not (Test-Path -LiteralPath $p)) { throw 'missing' }
-$shell = New-Object -ComObject Shell.Application
-$dir = Split-Path -Parent $p
-$name = Split-Path -Leaf $p
-$item = $shell.NameSpace($dir).ParseName($name)
-if ($null -eq $item) { throw 'parse failed' }
-$item.InvokeVerb('delete')
-Start-Sleep -Milliseconds 500
-if (Test-Path -LiteralPath $p) { throw 'still exists' }
-`, escaped)
-	out, err := runPowerShell(ps)
-	if err != nil {
-		return fmt.Errorf("shell recycle: %w (%s)", err, out)
-	}
-	if _, err := os.Lstat(path); err == nil {
-		return fmt.Errorf("path still exists after shell recycle")
+		return fmt.Errorf("path still exists after VB recycle (likely still in use)")
 	}
 	return nil
 }

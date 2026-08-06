@@ -1463,24 +1463,70 @@ async function init() {
       return;
     }
     const log = $("#chat-log");
-    log.insertAdjacentHTML("beforeend", `<div class="bubble user">${escapeHtml(q)}</div>`);
+    appendChatBubble("user", q);
     input.value = "";
     try {
+      let question = q;
+      const attachNote = $("#chat-attach-label")?.textContent;
+      if (attachNote) {
+        question += `\n\n(User attached a local screenshot note: ${attachNote}. If they mention files in use / GPUCache, explain locking.)`;
+      }
       const { answer } = await api("/api/ask", {
         method: "POST",
-        body: JSON.stringify({ question: q }),
+        body: JSON.stringify({ question }),
       });
-      log.insertAdjacentHTML("beforeend", `<div class="bubble bot">${escapeHtml(answer)}</div>`);
-      log.scrollTop = log.scrollHeight;
+      appendChatBubble("bot", answer);
+      persistChat();
     } catch (err) {
       toast(err.message);
     }
   };
 
+  const newChat = $("#btn-new-chat");
+  if (newChat) {
+    newChat.onclick = () => {
+      const log = $("#chat-log");
+      if (log) log.innerHTML = "";
+      const lab = $("#chat-attach-label");
+      if (lab) lab.textContent = "";
+      const file = $("#chat-attach");
+      if (file) file.value = "";
+      try {
+        localStorage.removeItem("stoguard.askChat");
+      } catch (_) {}
+      toast("New chat started");
+    };
+  }
+  const attach = $("#chat-attach");
+  if (attach) {
+    attach.onchange = () => {
+      const f = attach.files && attach.files[0];
+      const lab = $("#chat-attach-label");
+      if (!f || !lab) return;
+      lab.textContent = f.name;
+      // Store a small data-URL preview note locally (not uploaded anywhere).
+      const reader = new FileReader();
+      reader.onload = () => {
+        try {
+          sessionStorage.setItem("stoguard.askImage", String(reader.result || "").slice(0, 200000));
+        } catch (_) {}
+        appendChatBubble("user", `[Attached image: ${f.name}] — Ask about what you see (e.g. Folder In Use).`);
+        persistChat();
+      };
+      reader.readAsDataURL(f);
+    };
+  }
+  restoreChat();
+
   try {
     state.status = await api("/api/status");
     state.tier = await api("/api/tier");
-    $("#platform-label").textContent = `${state.status.platform} · ${state.status.arch} · ${state.status.tierName}`;
+    const tierName = state.status.tierName || state.tier?.displayName || "Team";
+    const src = state.tier?.source || "";
+    $("#platform-label").textContent = `${state.status.platform} · ${state.status.arch} · ${tierName}`;
+    if (String(src).includes("default-team")) {
+      $("#platform-label").title = "Local builds unlock Team features by default. Set STOGUARD_TIER=free|pro to simulate lower tiers.";
+    }
   } catch {
     $("#platform-label").textContent = "offline";
   }
@@ -1489,6 +1535,33 @@ async function init() {
   } else {
     render();
   }
+}
+
+function appendChatBubble(role, text) {
+  const log = $("#chat-log");
+  if (!log) return;
+  log.insertAdjacentHTML("beforeend", `<div class="bubble ${role === "user" ? "user" : "bot"}">${escapeHtml(text)}</div>`);
+  log.scrollTop = log.scrollHeight;
+}
+
+function persistChat() {
+  const log = $("#chat-log");
+  if (!log) return;
+  try {
+    localStorage.setItem("stoguard.askChat", log.innerHTML);
+  } catch (_) {}
+}
+
+function restoreChat() {
+  const log = $("#chat-log");
+  if (!log) return;
+  try {
+    const html = localStorage.getItem("stoguard.askChat");
+    if (html) {
+      log.innerHTML = html;
+      log.scrollTop = log.scrollHeight;
+    }
+  } catch (_) {}
 }
 
 init();
