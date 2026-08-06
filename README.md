@@ -5,14 +5,29 @@
 <h1 align="center">Stoguard</h1>
 
 <p align="center">
-  <strong>AI developer workstation manager for macOS, Windows, and Linux.</strong><br/>
-  Find AI models, forgotten packages (with definitions + disk use), and caches — clean safely to Trash, zero telemetry.
+  <strong>AI mentor for developer workstations — macOS, Windows, and Linux.</strong><br/>
+  Scan, explain, forecast, and clean safely to Trash. Zero telemetry by default.
+</p>
+
+<p align="center">
+  <a href="website/downloads/Stoguard-0.4.2.dmg"><strong>⬇ macOS DMG</strong></a>
+  &nbsp;·&nbsp;
+  <a href="website/downloads/stoguard-windows-amd64.exe"><strong>⬇ Windows</strong></a>
+  &nbsp;·&nbsp;
+  <a href="website/downloads/stoguard-linux-amd64"><strong>⬇ Linux</strong></a>
+  &nbsp;·&nbsp;
+  <a href="website/downloads/stoguard-darwin-arm64">Apple Silicon</a>
+  ·
+  <a href="website/downloads/stoguard-linux-arm64">Linux ARM</a>
 </p>
 
 <p align="center">
   <a href="docs/INSTALL.md"><strong>Install</strong></a> ·
   <a href="website/index.html"><strong>Website</strong></a> ·
+  <a href="docs/ENTERPRISE.md">Enterprise</a> ·
+  <a href="docs/ROADMAP.md">Roadmap</a> ·
   <a href="docs/COMPARISON.md">Comparison</a> ·
+  <a href="docs/PLUGIN_SDK.md">Plugin SDK</a> ·
   <a href="SECURITY.md">Security</a> ·
   <a href="docs/PRIVACY.md">Privacy</a>
 </p>
@@ -20,52 +35,79 @@
 <p align="center">
   <img src="https://img.shields.io/badge/platform-macOS%20%7C%20Windows%20%7C%20Linux-lightgrey" alt="Cross-platform" />
   <img src="https://img.shields.io/badge/macOS-14%2B-blue" alt="macOS 14+" />
+  <img src="https://img.shields.io/badge/version-0.4.2-blue" alt="0.4.2" />
   <img src="https://img.shields.io/badge/license-Proprietary-red" alt="Proprietary" />
 </p>
 
 ---
 
-Stoguard finds what’s eating a developer workstation — Docker, package caches, IDE data, local AI models — explains each folder **and each installed package** in plain English, groups advanced AI clutter into **AI Cleanup** for immediate safe reclaim, and moves cleanup to **Trash** (never silent deletes).
+Stoguard finds what’s eating a developer workstation — Docker, package caches, IDE data, local AI models, large media — then acts as an **AI mentor**: grounded Ask answers, a health score, forecasts, and Trash-only cleanup (never silent deletes).
 
 ## What’s included
 
 | Component | Path | Platforms |
 |-----------|------|-----------|
-| **Native macOS app (universal)** | `Sources/Stoguard` → `Stoguard.app` | macOS 14+ Apple Silicon **and** Intel |
-| **Cross-platform engine + UI** | `stoguard/` (Go) | macOS · Windows · Linux (x64/ARM) |
+| **Native macOS app (universal)** | `Sources/Stoguard` → `Stoguard.app` / DMG | macOS 14+ Apple Silicon **and** Intel |
+| **Cross-platform engine + UI** | `stoguard/` (Go) → `:8787` | macOS · Windows · Linux (x64/ARM) |
 | **OS Trash** | Finder / Recycle Bin / FreeDesktop | Best-effort native trash on each OS |
-| **Marketing site** | `website/` | Static |
+| **Marketing site** | `website/` | Static (`:8765` locally) |
 
 ### Core capabilities
 - Parallel rule-based scan with adaptive skips + fingerprint cache  
-- **Health score** — storage / performance / security / AI workspace + SSD fill forecasts  
-- **Proactive monitor** — detect → explain → recommend (background disk/memory alerts)  
+- **Ask Stoguard** — scan-grounded mentor (not ChatGPT): Problem → Cause → Explanation → Risk → Recommendation → one-click Fix → Learn More + knowledge cards  
+- **Predictive intelligence** — GB/day curves for Docker, Ollama, Hugging Face, DerivedData, Downloads, Time Machine + days-to-full  
+- **Health score** — Storage / Performance / Environment / Security / AI Workspace + daily·weekly·monthly history  
+- **Background monitoring** — watches rapid growth, build-cache spikes, idle models (while app runs)  
+- **AI Workspace Manager** — sizes, last used, RAM estimate, GPU best-effort, quants, duplicates, archive/Trash  
+- **Env Doctor** — Brew doctor, Node/Python conflicts, Java, Android SDKs, Flutter dupes, Rust, asdf/mise  
+- **Repository Doctor** — heavy folders, dead deps, binaries, **secrets scan**, build artifacts  
+- **Plugin SDK** — detection + explanation + risk + safe actions + docs links (`docs/PLUGIN_SDK.md`)  
+- **Explainability** — every Doctor rec answers Why / What happens / Undo / Rebuilds / Is this common?  
 - **Preference memory** — Keep vs Clean habits reshape Doctor ranking  
-- **Learning Center** + richer Ask (teacher-mode explanations; Ollama optional)  
-- **Automation** — scheduled scan/tidy rules + opt-in local cohort benchmarks  
-- **AI Cleanup** — models, skills/MCP, and AI caches with archive/dedupe advice  
+- **Learning Center** — what DerivedData/Docker/etc. are, when to delete, what happens after  
+- **Automation** — daily scan / Sunday safe tidy / npm&gt;5GB — stages selection for your confirm  
 - **Package Finder** — Homebrew / npm / pipx / CLI installs with definition + size  
-- **Repository intelligence** — heavy folders + large binaries in a pointed-at repo  
-- **Plugin SDK** — drop-in JSON rules (`docs/PLUGIN_SDK.md`)  
-- Symlink-safe Trash / recycle staging  
-- Workstation Doctor, storage timeline, duplicates  
-- Free / Pro / Team feature tiers (local/dev builds default to **Team** for full unlock)  
-- Team fleet ingest + console (set `STOGUARD_TIER=free` or `pro` to simulate lower tiers)
+- **Duplicates (thorough)** — fingerprint-confirmed only; related installs show difference icons  
+- **Media Optimizer** — large images/videos/docs; approve keep-resolution optimize or KB/MB/GB/TB target  
+- **Cloud cohort knowledge** — opt-in baselines + fleet-peer averages + optional remote feed/contribute (`docs/ENTERPRISE.md`)  
+- **Enterprise fleet** — schema v2 multi-OS ingest, compliance, AI/license inventory, LAN Team server (`-bind` + API key)  
+- Symlink-safe Trash · Workstation Doctor · storage timeline  
+- Free / Pro / Team tiers (local builds default to **Team**). Set `STOGUARD_TIER=free|pro` to simulate.  
+- Roadmap: [docs/ROADMAP.md](docs/ROADMAP.md)
+
+## Downloads
+
+| Platform | Artifact |
+|----------|----------|
+| **macOS** (universal app) | [`Stoguard-0.4.2.dmg`](website/downloads/Stoguard-0.4.2.dmg) |
+| **Windows** (x64) | [`stoguard-windows-amd64.exe`](website/downloads/stoguard-windows-amd64.exe) |
+| **Linux** (x64) | [`stoguard-linux-amd64`](website/downloads/stoguard-linux-amd64) |
+| **Linux** (ARM64) | [`stoguard-linux-arm64`](website/downloads/stoguard-linux-arm64) |
+| **macOS CLI** Apple Silicon | [`stoguard-darwin-arm64`](website/downloads/stoguard-darwin-arm64) |
+| **macOS CLI** Intel | [`stoguard-darwin-amd64`](website/downloads/stoguard-darwin-amd64) |
+
+Also via the [marketing site](website/index.html#downloads) (`python3 -m http.server 8765` in `website/`).
 
 ## Quick start
 
 ### macOS native app
 ```bash
-./scripts/build-app.sh --run
-# or open the DMG from website/downloads/
+./scripts/build-app.sh --run          # build + open Stoguard.app
+./scripts/build-dmg.sh 0.4.2          # also refresh website/downloads/*.dmg
+# or open website/downloads/Stoguard-0.4.2.dmg
 ```
 
 ### Cross-platform (all OSes)
 ```bash
 cd stoguard
-go run .                 # opens http://127.0.0.1:8787
+go run .                 # http://127.0.0.1:8787
 # or use a prebuilt binary from website/downloads/
 ./scripts/build.sh       # build macOS / Windows / Linux binaries
+```
+
+### Marketing site
+```bash
+cd website && python3 -m http.server 8765
 ```
 
 ## Repository

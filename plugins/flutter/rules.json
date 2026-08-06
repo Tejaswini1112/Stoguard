@@ -1,0 +1,16 @@
+{
+  "id": "plugin-flutter",
+  "name": "Flutter extras",
+  "version": "1.0.0",
+  "platforms": ["macos", "linux", "windows"],
+  "rules": [
+    {
+      "id": "plugin-flutter-pub-cache",
+      "name": "Pub cache",
+      "path": "~/.pub-cache",
+      "category": "Package Managers",
+      "safety": "check",
+      "note": "Dart/Flutter package cache. Re-downloaded by `flutter pub get`."
+    }
+  ]
+}

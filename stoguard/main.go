@@ -2,6 +2,7 @@ package main
 
 import (
 	"embed"
+	"encoding/json"
 	"flag"
 	"fmt"
 	"io/fs"
@@ -15,6 +16,7 @@ import (
 	"time"
 
 	"github.com/stoguard/stoguard/internal/api"
+	"github.com/stoguard/stoguard/internal/fleet"
 	"github.com/stoguard/stoguard/internal/platform"
 )
 
@@ -25,9 +27,12 @@ var webFS embed.FS
 var rulesFS embed.FS
 
 func main() {
-	port := flag.Int("port", 8787, "local UI port")
+	port := flag.Int("port", 8787, "UI / API port")
+	bind := flag.String("bind", "127.0.0.1", "listen address (use 0.0.0.0 for LAN Team fleet server)")
+	apiKey := flag.String("api-key", os.Getenv("STOGUARD_API_KEY"), "require X-Stoguard-Key on API (recommended with -bind 0.0.0.0)")
 	noOpen := flag.Bool("no-open", false, "do not open the browser")
 	scanOnly := flag.Bool("scan", false, "run one CLI scan and exit")
+	fleetCmd := flag.String("fleet", "", "fleet CLI: list | summary | export | ingest-self")
 	flag.Parse()
 
 	rulesDir, err := materializeRules()
@@ -37,6 +42,12 @@ func main() {
 	_ = platform.EnsureDataDir()
 
 	srv := api.New(rulesDir)
+	srv.APIKey = *apiKey
+
+	if *fleetCmd != "" {
+		runFleetCLI(srv, *fleetCmd)
+		return
+	}
 
 	if *scanOnly {
 		result, err := srv.Engine.Scan()
@@ -70,17 +81,26 @@ func main() {
 		files.ServeHTTP(w, r)
 	})
 
-	addr := fmt.Sprintf("127.0.0.1:%d", *port)
+	addr := fmt.Sprintf("%s:%d", *bind, *port)
 	ln, err := net.Listen("tcp", addr)
 	if err != nil {
 		fatal(err)
 	}
 
 	url := "http://" + addr
-	fmt.Printf("Stoguard running on %s (%s/%s)\n", url, runtime.GOOS, runtime.GOARCH)
+	if *bind == "0.0.0.0" {
+		url = fmt.Sprintf("http://127.0.0.1:%d", *port)
+	}
+	fmt.Printf("Stoguard running on %s (listen %s) (%s/%s)\n", url, addr, runtime.GOOS, runtime.GOARCH)
 	fmt.Printf("Data directory: %s\n", platform.DataDir())
+	if *apiKey != "" {
+		fmt.Println("API key auth enabled (X-Stoguard-Key)")
+	}
+	if *bind != "127.0.0.1" && *apiKey == "" {
+		fmt.Println("WARNING: binding beyond localhost without -api-key is insecure")
+	}
 
-	if !*noOpen {
+	if !*noOpen && *bind == "127.0.0.1" {
 		go func() {
 			time.Sleep(300 * time.Millisecond)
 			openBrowser(url)
@@ -89,6 +109,51 @@ func main() {
 
 	if err := http.Serve(ln, root); err != nil {
 		fatal(err)
+	}
+}
+
+func runFleetCLI(srv *api.Server, cmd string) {
+	switch cmd {
+	case "list":
+		list, err := fleet.List()
+		if err != nil {
+			fatal(err)
+		}
+		for _, m := range list {
+			comp := "-"
+			if m.Compliance != nil {
+				comp = fmt.Sprintf("%d", m.Compliance.Score)
+			}
+			fmt.Printf("%-20s %-8s reclaim=%.1fGB compliance=%s\n",
+				m.Hostname, m.Platform, float64(m.Reclaimable)/1e9, comp)
+		}
+	case "summary":
+		sum, err := fleet.Summary()
+		if err != nil {
+			fatal(err)
+		}
+		b, _ := json.MarshalIndent(sum, "", "  ")
+		fmt.Println(string(b))
+	case "export":
+		result, err := srv.Engine.Scan()
+		if err != nil {
+			fatal(err)
+		}
+		rep := fleet.FromScan(result)
+		b, _ := json.MarshalIndent(rep, "", "  ")
+		fmt.Println(string(b))
+	case "ingest-self":
+		result, err := srv.Engine.Scan()
+		if err != nil {
+			fatal(err)
+		}
+		m, err := fleet.Ingest(fleet.FromScan(result))
+		if err != nil {
+			fatal(err)
+		}
+		fmt.Printf("ingested %s (%s)\n", m.Hostname, m.Platform)
+	default:
+		fatal(fmt.Errorf("unknown -fleet %q (list|summary|export|ingest-self)", cmd))
 	}
 }
 

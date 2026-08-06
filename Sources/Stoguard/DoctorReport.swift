@@ -73,6 +73,8 @@ struct DoctorRecommendation: Identifiable, Hashable, Sendable {
     let action: DoctorActionKind
     let relatedItemID: String?
     let command: String?
+    /// Structured trust answers: Why / what happens / undo / rebuilds / common.
+    var explainability: RecommendationExplain? = nil
 
     var bytesText: String { ByteText.string(bytes) }
 }
@@ -226,7 +228,8 @@ enum DoctorEngine {
                     daysUnused: d,
                     action: actionKind(for: item),
                     relatedItemID: item.id,
-                    command: item.command
+                    command: item.command,
+                    explainability: RecommendationExplain.forItem(item)
                 ))
             } else if item.safety == .safe && item.sizeBytes >= 200_000_000 {
                 recs.append(DoctorRecommendation(
@@ -238,7 +241,8 @@ enum DoctorEngine {
                     daysUnused: days,
                     action: .trashSafe,
                     relatedItemID: item.id,
-                    command: nil
+                    command: nil,
+                    explainability: RecommendationExplain.forItem(item)
                 ))
             } else if item.safety == .command && item.sizeBytes >= 500_000_000 {
                 recs.append(DoctorRecommendation(
@@ -250,7 +254,8 @@ enum DoctorEngine {
                     daysUnused: days,
                     action: .runCommand,
                     relatedItemID: item.id,
-                    command: item.command
+                    command: item.command,
+                    explainability: RecommendationExplain.forItem(item)
                 ))
             }
         }

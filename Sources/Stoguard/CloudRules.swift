@@ -145,13 +145,25 @@ enum CloudRules {
 
 /// Drop-in technology plugins: `~/Library/Application Support/Stoguard/Plugins/*.json`
 enum PluginLoader {
-    struct PluginFile: Codable {
+    struct PluginFile: Codable, Identifiable {
         var id: String
         var name: String
         var version: String?
         /// macOS | windows | linux | any
         var platforms: [String]?
+        /// Human summary for the plugin pack.
+        var description: String? = nil
+        var documentationURL: String? = nil
+        var author: String? = nil
         var rules: [Rule]
+
+        var displayRisk: String {
+            let levels = rules.compactMap(\.riskLevel)
+            if levels.contains(where: { $0.lowercased() == "high" }) { return "high" }
+            if levels.contains(where: { $0.lowercased() == "medium" }) { return "medium" }
+            if levels.contains(where: { $0.lowercased() == "low" }) { return "low" }
+            return rules.map(\.safety.rawValue).contains("never") ? "high" : "low"
+        }
     }
 
     static var pluginsDirectory: URL {
@@ -161,50 +173,73 @@ enum PluginLoader {
     static func ensureScaffold() {
         SupportPaths.ensureDirectory()
         try? FileManager.default.createDirectory(at: pluginsDirectory, withIntermediateDirectories: true)
-        let examples: [(String, String)] = [
-            ("example-rust.json", """
-            {
-              "id": "example-rust",
-              "name": "Rust extras",
-              "version": "1.0",
-              "platforms": ["macos", "linux"],
-              "rules": [
-                {
-                  "id": "plugin-cargo-git",
-                  "name": "Cargo git checkouts",
-                  "path": "~/.cargo/git",
-                  "category": "Package Managers",
-                  "safety": "check",
-                  "note": "Plugin-provided rule. Cargo git dependency checkouts."
-                }
-              ]
-            }
-            """),
-            ("README.txt", """
+        seedBundledExamplesIfNeeded()
+        let readme = pluginsDirectory.appendingPathComponent("README.txt")
+        if !FileManager.default.fileExists(atPath: readme.path) {
+            let body = """
             Stoguard Plugin SDK
-            Drop JSON plugins here. See docs/PLUGIN_SDK.md in the repo for the full schema.
-            Fields: id, name, version, platforms[], rules[{id,name,path,category,safety,note,command?}].
-            """),
-        ]
-        for (name, body) in examples {
-            let url = pluginsDirectory.appendingPathComponent(name)
-            if !FileManager.default.fileExists(atPath: url.path) {
-                try? body.data(using: .utf8)?.write(to: url, options: .atomic)
+            See docs/PLUGIN_SDK.md — each plugin declares detection paths, explanation, risk, safe actions, and docs links.
+            Packs: Plugins/<id>.json or Plugins/<id>/rules.json
+            """
+            try? body.data(using: .utf8)?.write(to: readme, options: .atomic)
+        }
+    }
+
+    /// Copy repo example packs into Application Support once (non-destructive).
+    private static func seedBundledExamplesIfNeeded() {
+        let marker = pluginsDirectory.appendingPathComponent(".seeded-v2")
+        guard !FileManager.default.fileExists(atPath: marker.path) else { return }
+
+        let example = """
+        {
+          "id": "example-rust",
+          "name": "Rust extras",
+          "version": "1.1.0",
+          "platforms": ["macos", "linux"],
+          "description": "Extra Cargo caches beyond the bundled rules.",
+          "documentationURL": "https://doc.rust-lang.org/cargo/",
+          "author": "Stoguard",
+          "rules": [
+            {
+              "id": "plugin-cargo-git",
+              "name": "Cargo git checkouts",
+              "path": "~/.cargo/git",
+              "category": "Package Managers",
+              "safety": "check",
+              "note": "Plugin-provided rule. Cargo git dependency checkouts.",
+              "explanation": "Cargo clones git dependencies here for builds.",
+              "riskLevel": "low",
+              "docsURL": "https://doc.rust-lang.org/cargo/guide/cargo-home.html",
+              "safeActions": ["Review folder", "cargo cache clean (when available)", "Trash unused checkouts"],
+              "whatRebuilds": "Next cargo build re-fetches needed git deps.",
+              "canUndo": "Put Back from Trash if you Trashed the folder.",
+              "isCommon": "Common on Rust shops that use git dependencies."
+            }
+          ]
+        }
+        """
+        let url = pluginsDirectory.appendingPathComponent("example-rust.json")
+        if !FileManager.default.fileExists(atPath: url.path) {
+            try? example.data(using: .utf8)?.write(to: url, options: .atomic)
+        }
+
+        // Best-effort: seed from app bundle PluginExamples if present.
+        if let res = Bundle.main.resourceURL?.appendingPathComponent("PluginExamples", isDirectory: true),
+           let names = try? FileManager.default.contentsOfDirectory(atPath: res.path) {
+            for name in names where name.hasSuffix(".json") {
+                let dest = pluginsDirectory.appendingPathComponent(name)
+                if !FileManager.default.fileExists(atPath: dest.path) {
+                    try? FileManager.default.copyItem(at: res.appendingPathComponent(name), to: dest)
+                }
             }
         }
+        try? Data("ok".utf8).write(to: marker, options: .atomic)
     }
 
     static func loadRules(platform: String = "macos") -> [Rule] {
         ensureScaffold()
-        let fm = FileManager.default
-        guard let files = try? fm.contentsOfDirectory(at: pluginsDirectory, includingPropertiesForKeys: nil)
-        else { return [] }
-
         var rules: [Rule] = []
-        for url in files where url.pathExtension.lowercased() == "json" {
-            guard let data = try? Data(contentsOf: url),
-                  let plugin = try? JSONDecoder().decode(PluginFile.self, from: data)
-            else { continue }
+        for plugin in listPlugins() {
             let plats = (plugin.platforms ?? ["any"]).map { $0.lowercased() }
             if plats.contains("any") || plats.contains(platform) {
                 rules.append(contentsOf: plugin.rules)
@@ -215,14 +250,25 @@ enum PluginLoader {
 
     static func listPlugins() -> [PluginFile] {
         ensureScaffold()
-        let fm = FileManager.default
-        guard let files = try? fm.contentsOfDirectory(at: pluginsDirectory, includingPropertiesForKeys: nil)
-        else { return [] }
-        return files.compactMap { url -> PluginFile? in
-            guard url.pathExtension.lowercased() == "json",
-                  let data = try? Data(contentsOf: url)
-            else { return nil }
+        return pluginJSONURLs().compactMap { url -> PluginFile? in
+            guard let data = try? Data(contentsOf: url) else { return nil }
             return try? JSONDecoder().decode(PluginFile.self, from: data)
         }
+    }
+
+    /// Supports both `Plugins/foo.json` and `Plugins/docker/rules.json` packs.
+    private static func pluginJSONURLs() -> [URL] {
+        let fm = FileManager.default
+        guard let enumerator = fm.enumerator(
+            at: pluginsDirectory,
+            includingPropertiesForKeys: [.isRegularFileKey],
+            options: [.skipsHiddenFiles]
+        ) else { return [] }
+        var urls: [URL] = []
+        for case let url as URL in enumerator {
+            guard url.pathExtension.lowercased() == "json" else { continue }
+            urls.append(url)
+        }
+        return urls.sorted { $0.path < $1.path }
     }
 }

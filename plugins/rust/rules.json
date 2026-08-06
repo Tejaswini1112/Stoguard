@@ -1,0 +1,24 @@
+{
+  "id": "plugin-rust",
+  "name": "Rust extras",
+  "version": "1.0.0",
+  "platforms": ["macos", "linux", "windows"],
+  "rules": [
+    {
+      "id": "plugin-cargo-registry",
+      "name": "Cargo registry cache",
+      "path": "~/.cargo/registry",
+      "category": "Package Managers",
+      "safety": "check",
+      "note": "Downloaded crates. Cargo refills on next build; keep if you build offline often."
+    },
+    {
+      "id": "plugin-cargo-git",
+      "name": "Cargo git checkouts",
+      "path": "~/.cargo/git",
+      "category": "Package Managers",
+      "safety": "check",
+      "note": "Git dependency checkouts for Cargo."
+    }
+  ]
+}

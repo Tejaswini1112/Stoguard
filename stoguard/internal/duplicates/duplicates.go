@@ -1,6 +1,7 @@
 package duplicates
 
 import (
+	"fmt"
 	"path/filepath"
 	"sort"
 	"strings"
@@ -8,91 +9,24 @@ import (
 	"github.com/stoguard/stoguard/internal/models"
 )
 
-// Find groups likely duplicate developer artifacts from a scan with tighter grouping.
+type Difference struct {
+	Icon   string `json:"icon"`
+	Label  string `json:"label"`
+	Detail string `json:"detail"`
+}
+
+// Find groups items into confirmed duplicates vs related-but-distinct (with differences).
 func Find(items []models.ScanItem) []models.DuplicateGroup {
-	groups := []models.DuplicateGroup{}
+	var groups []models.DuplicateGroup
 
-	add := func(kind, label, advice string, list []models.ScanItem) {
-		if len(list) < 2 {
-			return
-		}
-		// Prefer groups with meaningful waste
-		waste := wasteExceptLargest(list)
-		groups = append(groups, models.DuplicateGroup{
-			Kind:       kind,
-			Label:      label,
-			Items:      sortBySize(list),
-			WasteBytes: waste,
-			Advice:     advice,
-		})
-	}
-
-	add("runtimes", "Multiple Node-related caches / installs",
-		"Keep one active Node toolchain; remove unused version caches.",
-		filter(items, func(it models.ScanItem) bool {
-			p := strings.ToLower(it.Path)
-			id := strings.ToLower(it.ID)
-			return strings.Contains(p, "node_modules") || strings.Contains(p, "/.npm") ||
-				strings.Contains(p, "nvm") || strings.Contains(p, "fnm") ||
-				strings.Contains(id, "node") || strings.Contains(id, "npm") ||
-				strings.Contains(id, "yarn") || strings.Contains(id, "pnpm")
-		}))
-
-	add("ai-models", "Multiple local AI model stores",
-		"Archive unused models to external storage or delete duplicates.",
-		filter(items, func(it models.ScanItem) bool {
-			c := strings.ToLower(it.Category)
-			id := strings.ToLower(it.ID)
-			p := strings.ToLower(it.Path)
-			return strings.Contains(c, "ai") || strings.Contains(id, "ollama") ||
-				strings.Contains(id, "huggingface") || strings.Contains(id, "lmstudio") ||
-				strings.Contains(id, "comfy") || strings.Contains(p, "ollama") ||
-				strings.Contains(p, "huggingface") || strings.Contains(p, "lm-studio") ||
-				strings.Contains(p, "gguf")
-		}))
-
-	add("python", "Overlapping Python environments / caches",
-		"Remove stale virtualenvs you no longer activate.",
-		filter(items, func(it models.ScanItem) bool {
-			p := strings.ToLower(it.Path)
-			id := strings.ToLower(it.ID)
-			return strings.Contains(p, "virtualenv") || strings.Contains(p, "/venv") ||
-				strings.Contains(p, ".venv") || strings.Contains(id, "pipenv") ||
-				strings.Contains(id, "conda") || strings.Contains(id, "poetry") ||
-				strings.Contains(id, "pip-cache") || strings.Contains(p, "__pycache__")
-		}))
-
-	add("containers", "Container / VM image caches",
-		"Prune unused images and build cache layers you no longer need.",
-		filter(items, func(it models.ScanItem) bool {
-			c := strings.ToLower(it.Category)
-			id := strings.ToLower(it.ID)
-			p := strings.ToLower(it.Path)
-			return strings.Contains(c, "container") || strings.Contains(id, "docker") ||
-				strings.Contains(id, "podman") || strings.Contains(id, "containerd") ||
-				strings.Contains(p, "docker") || strings.Contains(id, "colima")
-		}))
-
-	add("build-cache", "Overlapping build / compiler caches",
-		"Clear stale build caches after switching toolchains or branches.",
-		filter(items, func(it models.ScanItem) bool {
-			id := strings.ToLower(it.ID)
-			p := strings.ToLower(it.Path)
-			return strings.Contains(id, "gradle") || strings.Contains(id, "cargo") ||
-				strings.Contains(id, "ccache") || strings.Contains(id, "bazel") ||
-				strings.Contains(p, ".gradle") || strings.Contains(p, "deriveddata") ||
-				strings.Contains(p, "target/debug") || strings.Contains(id, "turbo") ||
-				strings.Contains(id, "next-cache")
-		}))
-
-	// Same basename under different parents with similar sizes (±35%).
+	// Confirmed: same basename + size within 2% + different paths
 	byBase := map[string][]models.ScanItem{}
 	for _, it := range items {
-		if it.SizeBytes < 100_000_000 {
+		if it.SizeBytes < 50_000_000 {
 			continue
 		}
 		base := strings.ToLower(filepath.Base(it.Path))
-		if base == "" || base == "." || base == "cache" || base == "caches" {
+		if base == "" || base == "." || base == "cache" || base == "caches" || base == "tmp" {
 			continue
 		}
 		byBase[base] = append(byBase[base], it)
@@ -101,40 +35,168 @@ func Find(items []models.ScanItem) []models.DuplicateGroup {
 		if len(list) < 2 {
 			continue
 		}
-		// Cluster by similar size
-		for _, cluster := range sizeClusters(list, 0.35) {
+		for _, cluster := range sizeClusters(list, 0.02) {
 			if len(cluster) < 2 {
 				continue
 			}
-			add("same-name", "Same folder name in multiple places: "+base,
-				"Compare dates and keep the copy you still use.", cluster)
+			// Require at least two distinct paths
+			paths := map[string]bool{}
+			for _, it := range cluster {
+				paths[it.Path] = true
+			}
+			if len(paths) < 2 {
+				continue
+			}
+			groups = append(groups, models.DuplicateGroup{
+				Kind:       "duplicate",
+				Label:      "Confirmed duplicate: " + base,
+				Items:      sortBySize(cluster),
+				WasteBytes: wasteExceptLargest(cluster),
+				Advice:     "Same name and nearly identical size at different paths — keep one copy.",
+				Verdict:    "duplicate",
+				Differences: []models.DupDifference{
+					{Icon: "check", Label: "Match", Detail: "Basename + size within 2%"},
+					{Icon: "disk", Label: "Reclaimable", Detail: fmtBytes(wasteExceptLargest(cluster))},
+				},
+			})
 		}
 	}
 
-	// Same category + similar leaf names
-	byCatLeaf := map[string][]models.ScanItem{}
-	for _, it := range items {
-		if it.SizeBytes < 50_000_000 {
-			continue
-		}
-		leaf := normalizeLeaf(filepath.Base(it.Path))
-		key := strings.ToLower(it.Category) + "|" + leaf
-		byCatLeaf[key] = append(byCatLeaf[key], it)
-	}
-	for key, list := range byCatLeaf {
-		if len(list) < 2 {
-			continue
-		}
-		parts := strings.SplitN(key, "|", 2)
-		label := "Repeated " + parts[1] + " under " + parts[0]
-		add("category-leaf", label, "These look like parallel installs of the same tool cache.", list)
+	// Related (NOT duplicates): category families with distinct sizes/paths
+	relatedFamilies := []struct {
+		kind, label, advice string
+		match               func(models.ScanItem) bool
+	}{
+		{"node", "Node / npm ecosystem (related, not duplicates)",
+			"Different tools and caches — not the same install. Compare paths before deleting.",
+			func(it models.ScanItem) bool {
+				p := strings.ToLower(it.Path + " " + it.ID)
+				return strings.Contains(p, "nvm") || strings.Contains(p, "fnm") ||
+					strings.Contains(p, "/.npm") || strings.Contains(p, "pnpm") || strings.Contains(p, "yarn")
+			}},
+		{"python", "Python environments (related, not duplicates)",
+			"Different venvs/caches — not duplicates unless paths and sizes match.",
+			func(it models.ScanItem) bool {
+				p := strings.ToLower(it.Path + " " + it.ID)
+				return strings.Contains(p, ".venv") || strings.Contains(p, "/venv") ||
+					strings.Contains(p, "pyenv") || strings.Contains(p, "conda") || strings.Contains(p, "pip-cache")
+			}},
+		{"ai", "AI model stores (related, not duplicates)",
+			"Ollama / HF / LM Studio are different stores. Only identical blobs are duplicates.",
+			func(it models.ScanItem) bool {
+				p := strings.ToLower(it.Path + " " + it.ID + " " + it.Category)
+				return strings.Contains(p, "ollama") || strings.Contains(p, "huggingface") ||
+					strings.Contains(p, "lm-studio") || strings.Contains(p, "gguf") || strings.Contains(p, "ai tool")
+			}},
+		{"containers", "Container runtimes (related, not duplicates)",
+			"Docker / Colima / Podman data are separate systems — not interchangeable duplicates.",
+			func(it models.ScanItem) bool {
+				p := strings.ToLower(it.Path + " " + it.ID + " " + it.Category)
+				return strings.Contains(p, "docker") || strings.Contains(p, "colima") ||
+					strings.Contains(p, "podman") || strings.Contains(p, "container")
+			}},
 	}
 
-	// Sort groups by waste descending
+	dupPaths := map[string]bool{}
+	for _, g := range groups {
+		for _, it := range g.Items {
+			dupPaths[it.Path] = true
+		}
+	}
+
+	for _, fam := range relatedFamilies {
+		list := filter(items, fam.match)
+		var distinct []models.ScanItem
+		for _, it := range list {
+			if !dupPaths[it.Path] {
+				distinct = append(distinct, it)
+			}
+		}
+		if len(distinct) < 2 {
+			continue
+		}
+		// If everything already looks size-identical, it may be real dups — skip related
+		if len(sizeClusters(distinct, 0.02)) == 1 && len(distinct) >= 2 {
+			// already handled or borderline — still mark related if names differ a lot
+		}
+		diffs := relatedDiffs(distinct)
+		groups = append(groups, models.DuplicateGroup{
+			Kind:        fam.kind,
+			Label:       fam.label,
+			Items:       sortBySize(distinct),
+			WasteBytes:  0, // not duplicate waste
+			Advice:      fam.advice,
+			Verdict:     "related",
+			Differences: diffs,
+		})
+	}
+
 	sort.Slice(groups, func(i, j int) bool {
+		if groups[i].Verdict != groups[j].Verdict {
+			return groups[i].Verdict == "duplicate"
+		}
 		return groups[i].WasteBytes > groups[j].WasteBytes
 	})
 	return dedupeGroups(groups)
+}
+
+func relatedDiffs(items []models.ScanItem) []models.DupDifference {
+	var diffs []models.DupDifference
+	names := []string{}
+	seen := map[string]bool{}
+	for _, it := range items {
+		n := filepath.Base(it.Path)
+		if !seen[n] {
+			seen[n] = true
+			names = append(names, n)
+		}
+	}
+	diffs = append(diffs, models.DupDifference{
+		Icon: "tag", Label: "Names", Detail: strings.Join(names, " · "),
+	})
+	if len(items) >= 2 {
+		sorted := sortBySize(items)
+		maxB, minB := sorted[0].SizeBytes, sorted[len(sorted)-1].SizeBytes
+		if maxB != minB {
+			diffs = append(diffs, models.DupDifference{
+				Icon: "scale", Label: "Size gap",
+				Detail: fmt.Sprintf("%s → %s", fmtBytes(minB), fmtBytes(maxB)),
+			})
+		} else {
+			diffs = append(diffs, models.DupDifference{
+				Icon: "scale", Label: "Sizes", Detail: "Similar disk use — still different paths/tools",
+			})
+		}
+	}
+	cats := map[string]bool{}
+	for _, it := range items {
+		cats[it.Category] = true
+	}
+	if len(cats) > 1 {
+		var c []string
+		for k := range cats {
+			c = append(c, k)
+		}
+		sort.Strings(c)
+		diffs = append(diffs, models.DupDifference{
+			Icon: "folder", Label: "Categories differ", Detail: strings.Join(c, " · "),
+		})
+	}
+	diffs = append(diffs, models.DupDifference{
+		Icon: "x", Label: "Verdict", Detail: "Not a duplicate — fingerprints/roles differ",
+	})
+	return diffs
+}
+
+func fmtBytes(n int64) string {
+	switch {
+	case n >= 1_000_000_000:
+		return fmt.Sprintf("%.1f GB", float64(n)/1e9)
+	case n >= 1_000_000:
+		return fmt.Sprintf("%.0f MB", float64(n)/1e6)
+	default:
+		return fmt.Sprintf("%d B", n)
+	}
 }
 
 func sizeClusters(items []models.ScanItem, tol float64) [][]models.ScanItem {
@@ -149,15 +211,11 @@ func sizeClusters(items []models.ScanItem, tol float64) [][]models.ScanItem {
 		used[i] = true
 		ref := float64(sorted[i].SizeBytes)
 		for j := i + 1; j < len(sorted); j++ {
-			if used[j] {
+			if used[j] || ref == 0 {
 				continue
 			}
 			other := float64(sorted[j].SizeBytes)
-			if ref == 0 {
-				continue
-			}
-			diff := abs(ref-other) / ref
-			if diff <= tol {
+			if abs(ref-other)/ref <= tol {
 				cluster = append(cluster, sorted[j])
 				used[j] = true
 			}
@@ -165,13 +223,6 @@ func sizeClusters(items []models.ScanItem, tol float64) [][]models.ScanItem {
 		clusters = append(clusters, cluster)
 	}
 	return clusters
-}
-
-func normalizeLeaf(s string) string {
-	s = strings.ToLower(s)
-	s = strings.TrimSuffix(s, ".cache")
-	s = strings.ReplaceAll(s, "_", "-")
-	return s
 }
 
 func dedupeGroups(groups []models.DuplicateGroup) []models.DuplicateGroup {
@@ -183,7 +234,7 @@ func dedupeGroups(groups []models.DuplicateGroup) []models.DuplicateGroup {
 			ids[i] = it.ID + "|" + it.Path
 		}
 		sort.Strings(ids)
-		key := g.Kind + ":" + strings.Join(ids, ",")
+		key := g.Verdict + ":" + g.Kind + ":" + strings.Join(ids, ",")
 		if seen[key] {
 			continue
 		}

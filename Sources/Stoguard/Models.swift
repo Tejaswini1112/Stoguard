@@ -23,6 +23,14 @@ struct Rule: Codable, Identifiable, Hashable, Sendable {
     let safety: Safety
     let note: String
     var command: String? = nil
+    /// Plugin SDK: richer explainability (optional — bundled rules omit these).
+    var explanation: String? = nil
+    var riskLevel: String? = nil // low | medium | high
+    var docsURL: String? = nil
+    var safeActions: [String]? = nil
+    var whatRebuilds: String? = nil
+    var canUndo: String? = nil
+    var isCommon: String? = nil
 }
 
 struct ScanItem: Identifiable, Hashable, Sendable {

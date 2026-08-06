@@ -4,9 +4,10 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-VERSION="${1:-0.4.0}"
+VERSION="${1:-0.4.2}"
 STAGING="$ROOT/build/dmg-staging"
 DMG="$ROOT/build/Stoguard-${VERSION}.dmg"
+WEB_DMG="$ROOT/website/downloads/Stoguard-${VERSION}.dmg"
 
 "$ROOT/scripts/build-app.sh"
 
@@ -30,5 +31,12 @@ hdiutil create \
   -format UDZO \
   "$DMG"
 
+mkdir -p "$ROOT/website/downloads"
+cp -f "$DMG" "$WEB_DMG"
+# Keep older download names pointing at latest for bookmarks.
+cp -f "$DMG" "$ROOT/website/downloads/Stoguard-0.4.1.dmg" 2>/dev/null || true
+cp -f "$DMG" "$ROOT/website/downloads/Stoguard-0.4.0.dmg" 2>/dev/null || true
+
 rm -rf "$STAGING"
 echo "==> done: $DMG"
+echo "==> copied to website/downloads/"

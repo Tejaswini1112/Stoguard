@@ -19,6 +19,10 @@ enum EnvDoctor {
         findings += python()
         findings += java()
         findings += android()
+        findings += flutter()
+        findings += rust()
+        findings += versionManagers()
+        findings += git()
         findings += xcodeCLTools()
         return findings
     }
@@ -31,22 +35,47 @@ enum EnvDoctor {
                 severity: .info, fixHint: "https://brew.sh"
             )]
         }
+        var out: [EnvFinding] = []
+        let doctor = shell("brew", ["doctor"])
+        let doctorWarn = doctor.lowercased().contains("warning") || doctor.lowercased().contains("error")
+        if doctorWarn {
+            out.append(EnvFinding(
+                id: "brew-doctor",
+                title: "Homebrew doctor reported issues",
+                detail: doctor.split(separator: "\n").prefix(6).joined(separator: " · "),
+                severity: .warn,
+                fixHint: "brew doctor  # read and fix warnings"
+            ))
+        }
         let outdated = shell("brew", ["outdated", "--quiet"])
         let lines = outdated.split(separator: "\n").filter { !$0.isEmpty }
         if lines.isEmpty {
-            return [EnvFinding(
-                id: "brew-ok", title: "Homebrew healthy",
-                detail: "No outdated formulae reported.",
-                severity: .ok, fixHint: nil
-            )]
+            out.append(EnvFinding(
+                id: "brew-ok", title: "Homebrew formulae up to date",
+                detail: doctorWarn ? "No outdated formulae, but doctor warnings exist." : "No outdated formulae reported.",
+                severity: doctorWarn ? .info : .ok, fixHint: nil
+            ))
+        } else {
+            out.append(EnvFinding(
+                id: "brew-outdated",
+                title: "\(lines.count) outdated Homebrew formulae",
+                detail: lines.prefix(12).joined(separator: ", ") + (lines.count > 12 ? "…" : ""),
+                severity: .warn,
+                fixHint: "brew upgrade"
+            ))
         }
-        return [EnvFinding(
-            id: "brew-outdated",
-            title: "\(lines.count) outdated Homebrew formulae",
-            detail: lines.prefix(12).joined(separator: ", ") + (lines.count > 12 ? "…" : ""),
-            severity: .warn,
-            fixHint: "brew upgrade"
-        )]
+        // Orphaned leftover kegs hint
+        let cleanup = shell("brew", ["cleanup", "-n"])
+        if cleanup.lowercased().contains("would remove") || cleanup.contains("GB") {
+            out.append(EnvFinding(
+                id: "brew-cleanup",
+                title: "Homebrew cleanup available",
+                detail: cleanup.split(separator: "\n").prefix(3).joined(separator: " "),
+                severity: .info,
+                fixHint: "brew cleanup"
+            ))
+        }
+        return out
     }
 
     private static func node() -> [EnvFinding] {
@@ -58,8 +87,19 @@ enum EnvDoctor {
                 id: "node-multi",
                 title: "\(versions.count) Node versions via nvm",
                 detail: versions.joined(separator: ", "),
+                severity: versions.count > 4 ? .warn : .info,
+                fixHint: "Keep 1–2 LTS versions; `nvm uninstall <ver>` the rest."
+            ))
+        }
+        // fnm / volta / asdf node
+        let fnm = dirNames(PathUtil.expand("~/.local/share/fnm/node-versions"))
+        if fnm.count > 2 {
+            out.append(EnvFinding(
+                id: "node-fnm",
+                title: "\(fnm.count) Node versions via fnm",
+                detail: fnm.prefix(8).joined(separator: ", "),
                 severity: .warn,
-                fixHint: "Keep one LTS; `nvm uninstall` the rest."
+                fixHint: "fnm uninstall <ver>"
             ))
         }
         if which("node") != nil {
@@ -70,18 +110,17 @@ enum EnvDoctor {
                 severity: .ok, fixHint: nil
             ))
         }
-        // Duplicate global installs: /usr/local vs nvm vs brew
         var installs: [String] = []
-        for p in ["/usr/local/bin/node", "/opt/homebrew/bin/node", PathUtil.expand("~/.nvm/nvm.sh")] {
+        for p in ["/usr/local/bin/node", "/opt/homebrew/bin/node", PathUtil.expand("~/.nvm/nvm.sh"), PathUtil.expand("~/.volta/bin/node")] {
             if FileManager.default.fileExists(atPath: p) { installs.append(p) }
         }
         if installs.count > 1 {
             out.append(EnvFinding(
                 id: "node-paths",
-                title: "Multiple Node install locations",
+                title: "Duplicate Node installation managers",
                 detail: installs.joined(separator: " · "),
                 severity: .warn,
-                fixHint: "Pick one installer (nvm OR Homebrew) to avoid PATH conflicts."
+                fixHint: "Pick one installer (nvm OR Homebrew OR Volta) to avoid PATH conflicts."
             ))
         }
         return out
@@ -95,8 +134,22 @@ enum EnvDoctor {
                 id: "py-multi",
                 title: "\(pyenv.count) Python versions (pyenv)",
                 detail: pyenv.joined(separator: ", "),
-                severity: .warn,
+                severity: pyenv.count > 5 ? .warn : .info,
                 fixHint: "pyenv uninstall <version>"
+            ))
+        }
+        // Conflicting interpreters on PATH
+        var pythons: [String] = []
+        for p in ["/usr/bin/python3", "/opt/homebrew/bin/python3", "/usr/local/bin/python3", PathUtil.expand("~/.pyenv/shims/python")] {
+            if FileManager.default.fileExists(atPath: p) { pythons.append(p) }
+        }
+        if pythons.count >= 3 {
+            out.append(EnvFinding(
+                id: "py-conflict",
+                title: "Conflicting Python interpreters",
+                detail: pythons.joined(separator: " · "),
+                severity: .warn,
+                fixHint: "Prefer pyenv or Homebrew alone; fix PATH order in your shell profile."
             ))
         }
         let venvs = findShallow(
@@ -105,12 +158,28 @@ enum EnvDoctor {
             maxDepth: 4
         )
         if venvs.count >= 3 {
+            let unusedHint = venvs.count >= 6 ? " — many look leftover" : ""
             out.append(EnvFinding(
                 id: "py-venvs",
-                title: "\(venvs.count) Python virtual environments found",
-                detail: "Stale venvs often linger after projects end.",
-                severity: .info,
-                fixHint: "Delete unused .venv folders or run a Developer scan."
+                title: "\(venvs.count) Python virtual environments found\(unusedHint)",
+                detail: venvs.prefix(6).map { ($0 as NSString).deletingLastPathComponent as String }.joined(separator: ", "),
+                severity: venvs.count >= 8 ? .warn : .info,
+                fixHint: "Archive/delete unused .venv folders (recreate with python -m venv)."
+            ))
+        }
+        let conda = PathUtil.expand("~/miniconda3")
+        let conda2 = PathUtil.expand("~/anaconda3")
+        let condaDirs = [conda, conda2, PathUtil.expand("~/mambaforge")].filter {
+            FileManager.default.fileExists(atPath: $0)
+        }
+        if !condaDirs.isEmpty {
+            let envs = dirNames((condaDirs[0] as NSString).appendingPathComponent("envs"))
+            out.append(EnvFinding(
+                id: "py-conda",
+                title: "Conda present\(envs.isEmpty ? "" : " · \(envs.count) envs")",
+                detail: condaDirs.joined(separator: " · "),
+                severity: envs.count > 4 ? .warn : .info,
+                fixHint: envs.count > 4 ? "conda env remove -n <name>" : nil
             ))
         }
         return out
@@ -119,36 +188,183 @@ enum EnvDoctor {
     private static func java() -> [EnvFinding] {
         let root = "/Library/Java/JavaVirtualMachines"
         let jvms = dirNames(root)
-        guard jvms.count > 1 else { return [] }
+        guard !jvms.isEmpty else { return [] }
+        if jvms.count == 1 {
+            return [EnvFinding(
+                id: "java-ok", title: "Java JDK present",
+                detail: jvms[0], severity: .ok, fixHint: nil
+            )]
+        }
         return [EnvFinding(
             id: "java-multi",
-            title: "\(jvms.count) Java JDKs installed",
+            title: "\(jvms.count) Java JDKs — conflict risk",
             detail: jvms.joined(separator: ", "),
             severity: .warn,
-            fixHint: "Conflicts happen when JAVA_HOME points at the wrong JDK. Keep the versions you need."
+            fixHint: "Set JAVA_HOME explicitly per project; remove JDKs you don’t need via System Settings → General → Storage or pkg uninstallers."
         )]
     }
 
     private static func android() -> [EnvFinding] {
         let sdk = PathUtil.expand("~/Library/Android/sdk")
         guard FileManager.default.fileExists(atPath: sdk) else { return [] }
+        var out: [EnvFinding] = []
         let platform = (sdk as NSString).appendingPathComponent("platforms")
         let platforms = dirNames(platform)
         if platforms.isEmpty {
             return [EnvFinding(
                 id: "android-incomplete",
-                title: "Android SDK incomplete",
+                title: "Broken / incomplete Android SDK",
                 detail: "SDK folder exists but no platforms installed.",
                 severity: .warn,
-                fixHint: "Open Android Studio → SDK Manager."
+                fixHint: "Open Android Studio → SDK Manager and install a platform."
             )]
         }
-        return [EnvFinding(
+        out.append(EnvFinding(
             id: "android-ok",
             title: "Android SDK present",
             detail: "\(platforms.count) platform(s): \(platforms.prefix(5).joined(separator: ", "))",
-            severity: .ok,
-            fixHint: nil
+            severity: platforms.count > 6 ? .warn : .ok,
+            fixHint: platforms.count > 6 ? "Remove unused platforms in SDK Manager." : nil
+        ))
+        let sysimg = (sdk as NSString).appendingPathComponent("system-images")
+        let images = dirNames(sysimg)
+        if images.count > 3 {
+            let sz = Shell.size(sysimg)
+            out.append(EnvFinding(
+                id: "android-sysimg",
+                title: "\(images.count) Android system images",
+                detail: "\(ByteText.string(sz)) under system-images",
+                severity: .warn,
+                fixHint: "Delete unused emulator system images in SDK Manager."
+            ))
+        }
+        let ndk = (sdk as NSString).appendingPathComponent("ndk")
+        let ndks = dirNames(ndk)
+        if ndks.count > 2 {
+            out.append(EnvFinding(
+                id: "android-ndk",
+                title: "\(ndks.count) Android NDK versions",
+                detail: ndks.joined(separator: ", "),
+                severity: .info,
+                fixHint: "Keep the NDK version your projects pin; remove others."
+            ))
+        }
+        return out
+    }
+
+    private static func flutter() -> [EnvFinding] {
+        var out: [EnvFinding] = []
+        let candidates = [
+            PathUtil.expand("~/flutter"),
+            PathUtil.expand("~/development/flutter"),
+            PathUtil.expand("~/Developer/flutter"),
+            "/opt/homebrew/Caskroom/flutter",
+        ].filter { FileManager.default.fileExists(atPath: $0) }
+        if candidates.count > 1 {
+            out.append(EnvFinding(
+                id: "flutter-dup",
+                title: "Duplicate Flutter SDK installs",
+                detail: candidates.joined(separator: " · "),
+                severity: .warn,
+                fixHint: "Keep one SDK on PATH; delete the extras."
+            ))
+        }
+        guard which("flutter") != nil else {
+            if out.isEmpty {
+                out.append(EnvFinding(
+                    id: "flutter-missing", title: "Flutter not on PATH",
+                    detail: "Optional unless you build Flutter apps.",
+                    severity: .info, fixHint: "Install Flutter SDK and add it to PATH."
+                ))
+            }
+            return out
+        }
+        let v = shell("flutter", ["--version"]).split(separator: "\n").first.map(String.init) ?? "Flutter"
+        let pub = PathUtil.expand("~/.pub-cache")
+        let pubSize = FileManager.default.fileExists(atPath: pub) ? Shell.size(pub) : 0
+        var detail = v
+        if pubSize > 1_000_000_000 {
+            detail += " · pub-cache \(ByteText.string(pubSize))"
+        }
+        out.append(EnvFinding(
+            id: "flutter-ok", title: "Flutter present",
+            detail: detail,
+            severity: pubSize > 15_000_000_000 ? .warn : .ok,
+            fixHint: pubSize > 15_000_000_000 ? "flutter pub cache clean  # when safe" : nil
+        ))
+        return out
+    }
+
+    private static func rust() -> [EnvFinding] {
+        guard which("rustc") != nil || FileManager.default.fileExists(atPath: PathUtil.expand("~/.cargo/bin/rustc")) else {
+            return [EnvFinding(
+                id: "rust-missing", title: "Rust toolchain not found",
+                detail: "Optional unless you build Rust projects.",
+                severity: .info, fixHint: "curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh"
+            )]
+        }
+        let rustc = which("rustc").map { shell($0, ["--version"]) } ?? shell(PathUtil.expand("~/.cargo/bin/rustc"), ["--version"])
+        let toolchains = dirNames(PathUtil.expand("~/.rustup/toolchains"))
+        var detail = rustc.trimmingCharacters(in: .whitespacesAndNewlines)
+        if toolchains.count > 1 {
+            detail += " · \(toolchains.count) rustup toolchains: \(toolchains.prefix(5).joined(separator: ", "))"
+        }
+        return [EnvFinding(
+            id: toolchains.count > 2 ? "rust-multi" : "rust-ok",
+            title: toolchains.count > 2 ? "Multiple Rust toolchains" : "Rust present",
+            detail: detail.isEmpty ? toolchains.joined(separator: ", ") : detail,
+            severity: toolchains.count > 2 ? .warn : .ok,
+            fixHint: toolchains.count > 2 ? "rustup toolchain uninstall <name>" : nil
+        )]
+    }
+
+    private static func versionManagers() -> [EnvFinding] {
+        var out: [EnvFinding] = []
+        if which("asdf") != nil || FileManager.default.fileExists(atPath: PathUtil.expand("~/.asdf")) {
+            let plugs = dirNames(PathUtil.expand("~/.asdf/installs"))
+            out.append(EnvFinding(
+                id: "asdf",
+                title: "asdf version manager",
+                detail: plugs.isEmpty ? "Installed" : "Plugins/install roots: \(plugs.prefix(8).joined(separator: ", "))",
+                severity: plugs.count > 6 ? .warn : .info,
+                fixHint: plugs.count > 6 ? "asdf uninstall <plugin> <version>" : nil
+            ))
+        }
+        if which("mise") != nil || FileManager.default.fileExists(atPath: PathUtil.expand("~/.local/share/mise")) {
+            out.append(EnvFinding(
+                id: "mise",
+                title: "mise version manager present",
+                detail: "Check `mise ls` for unused runtimes.",
+                severity: .info,
+                fixHint: "mise uninstall <tool>@<ver>"
+            ))
+        }
+        return out
+    }
+
+    private static func git() -> [EnvFinding] {
+        guard which("git") != nil else {
+            return [EnvFinding(
+                id: "git-missing", title: "Git not found",
+                detail: "Required for most developer workflows.",
+                severity: .warn, fixHint: "xcode-select --install  # or brew install git"
+            )]
+        }
+        let v = shell("git", ["--version"]).trimmingCharacters(in: .whitespacesAndNewlines)
+        let name = shell("git", ["config", "--global", "user.name"]).trimmingCharacters(in: .whitespacesAndNewlines)
+        let email = shell("git", ["config", "--global", "user.email"]).trimmingCharacters(in: .whitespacesAndNewlines)
+        if name.isEmpty || email.isEmpty {
+            return [EnvFinding(
+                id: "git-identity", title: "Git identity incomplete",
+                detail: "\(v). Set user.name / user.email for commits.",
+                severity: .warn,
+                fixHint: "git config --global user.name \"…\" && git config --global user.email \"…\""
+            )]
+        }
+        return [EnvFinding(
+            id: "git-ok", title: "Git configured",
+            detail: "\(v) · \(name) <\(email)>",
+            severity: .ok, fixHint: nil
         )]
     }
 

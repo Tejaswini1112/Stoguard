@@ -20,28 +20,37 @@
     ollama: { label: "Ollama Models", gb: 9, el: null },
   };
 
-  const scanSteps = [
-    { text: "Analyzing workstation…", cls: "run" },
-    { text: "✓ Docker ……………… 23 GB", cls: "ok", meter: "docker" },
-    { text: "✓ Scanning Xcode…", cls: "ok", meter: "xcode" },
-    { text: "✓ Scanning AI Models…", cls: "ok", meter: "ollama" },
-    { text: "✓ Finding Duplicates…", cls: "ok" },
+  const termLines = [
+    "> Why is my Mac slow?",
+    "",
+    "Problem: Mac feels sluggish",
+    "Cause: Disk 91% · Docker I/O · DerivedData 31 GB",
+    "Risk: Chronic thrashing near capacity",
+    "Fix: Stage safe caches (one-click) → confirm Clean",
+    "",
+    "> Why is Docker huge?",
+    "Docker growing 1.6 GB/day over 30 days.",
+    "At this pace: disk ~full in ~18 days.",
+    "Prefer: docker system prune — review volumes first.",
+    "",
+    "> Explain DerivedData",
+    "Xcode intermediates. Can delete? YES. Risk: Low.",
+    "After: next build slower once, then normal.",
   ];
 
-  const termLines = [
-    "$ Analyze my workstation",
-    "",
-    "✓ Docker images haven't been used in 64 days.",
-    "✓ Flutter SDK duplicated.",
-    "✓ 12 Node versions detected.",
-    "✓ 8 Python environments inactive.",
-    "✓ Xcode cache consuming 14GB.",
+  const scanSteps = [
+    { text: "Analyzing workstation…", cls: "run" },
+    { text: "✓ Docker ……………… 23 GB (+1.6 GB/day)", cls: "ok", meter: "docker" },
+    { text: "✓ Scanning Xcode…", cls: "ok", meter: "xcode" },
+    { text: "✓ Scanning AI Models…", cls: "ok", meter: "ollama" },
+    { text: "✓ Health · forecasts · Env Doctor…", cls: "ok" },
+    { text: "✓ Background watch armed…", cls: "ok" },
   ];
 
   const tech = [
     "Swift", "Docker", "Node", "Python", "Flutter", "Android Studio",
     "VS Code", "JetBrains", "Xcode", "Rust", "Go", "Unity",
-    "Ollama", "LM Studio", "Homebrew", "Git", "Terraform", "Kubernetes",
+    "Ollama", "LM Studio", "ComfyUI", "Homebrew", "Git", "Kubernetes",
   ];
 
   const logEl = document.getElementById("scan-log");

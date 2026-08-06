@@ -32,7 +32,51 @@ enum Shell {
     }
 
     static func size(_ path: String) -> Int64 {
-        du(path).first?.bytes ?? 0
+        // If `.git` is a file (worktree / gitdir pointer), size the real git directory.
+        var measure = path
+        var isDir: ObjCBool = false
+        if FileManager.default.fileExists(atPath: path, isDirectory: &isDir), !isDir.boolValue,
+           (path as NSString).lastPathComponent == ".git",
+           let text = try? String(contentsOfFile: path, encoding: .utf8),
+           text.hasPrefix("gitdir:") {
+            let raw = text.replacingOccurrences(of: "gitdir:", with: "")
+                .trimmingCharacters(in: .whitespacesAndNewlines)
+            let resolved: String
+            if raw.hasPrefix("/") {
+                resolved = raw
+            } else {
+                resolved = ((path as NSString).deletingLastPathComponent as NSString)
+                    .appendingPathComponent(raw)
+            }
+            if FileManager.default.fileExists(atPath: resolved) {
+                measure = resolved
+            }
+        }
+        if let bytes = du(measure).first?.bytes, bytes > 0 { return bytes }
+        // Fallback when `du` fails (unusual paths / permissions): sum allocated sizes.
+        return allocatedTreeSize(measure)
+    }
+
+    private static func allocatedTreeSize(_ path: String) -> Int64 {
+        let fm = FileManager.default
+        var isDir: ObjCBool = false
+        guard fm.fileExists(atPath: path, isDirectory: &isDir) else { return 0 }
+        if !isDir.boolValue {
+            return allocatedSize(path)
+        }
+        guard let enumerator = fm.enumerator(
+            at: URL(fileURLWithPath: path),
+            includingPropertiesForKeys: [.totalFileAllocatedSizeKey, .fileAllocatedSizeKey, .isRegularFileKey],
+            options: [.skipsHiddenFiles]
+        ) else { return 0 }
+        var total: Int64 = 0
+        var n = 0
+        while let url = enumerator.nextObject() as? URL {
+            n += 1
+            if n > 200_000 { break }
+            total += allocatedSize(url.path)
+        }
+        return total
     }
 
     /// Real on-disk allocation — critical for Docker sparse VM disks.

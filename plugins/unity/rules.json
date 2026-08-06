@@ -1,0 +1,16 @@
+{
+  "id": "plugin-unity",
+  "name": "Unity extras",
+  "version": "1.0.0",
+  "platforms": ["macos", "linux", "windows"],
+  "rules": [
+    {
+      "id": "plugin-unity-cache",
+      "name": "Unity cache",
+      "path": "~/Library/Unity/cache",
+      "category": "Developer",
+      "safety": "safe",
+      "note": "Unity Hub/editor download cache. Safe to clear; editors re-download as needed."
+    }
+  ]
+}

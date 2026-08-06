@@ -31,26 +31,22 @@ func LoadAll(rulesDir string) ([]models.Rule, error) {
 
 	pluginDir := filepath.Join(rulesDir, "plugins")
 	userPluginDir := filepath.Join(platform.DataDir(), "Plugins")
-	for _, dir := range []string{pluginDir, userPluginDir} {
-		entries, err := os.ReadDir(dir)
-		if err != nil {
-			continue
-		}
-		for _, e := range entries {
-			if e.IsDir() || !strings.HasSuffix(e.Name(), ".json") {
-				continue
+	// Also pick up repo-style packs checked out next to the binary when developing.
+	repoPlugins := filepath.Join(filepath.Dir(rulesDir), "..", "plugins")
+	for _, dir := range []string{pluginDir, userPluginDir, repoPlugins} {
+		_ = filepath.WalkDir(dir, func(path string, d os.DirEntry, err error) error {
+			if err != nil || d.IsDir() || !strings.HasSuffix(d.Name(), ".json") {
+				return nil
 			}
-			plugin, err := loadPlugin(filepath.Join(dir, e.Name()))
-			if err != nil {
-				continue
-			}
-			if !pluginMatches(plugin, osName) {
-				continue
+			plugin, err := loadPlugin(path)
+			if err != nil || !pluginMatches(plugin, osName) {
+				return nil
 			}
 			for _, r := range plugin.Rules {
 				byID[r.ID] = r
 			}
-		}
+			return nil
+		})
 	}
 
 	out := make([]models.Rule, 0, len(byID))

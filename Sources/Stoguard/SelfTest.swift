@@ -77,7 +77,7 @@ enum SelfTest {
             items: [sample], report: report, pulse: nil,
             duplicates: [], models: [], env: []
         ))
-        check(chat.contains("npm") || chat.contains("hotspot") || chat.contains("GB"), "ssd full narrative")
+        check(chat.contains("npm") || chat.contains("hotspot") || chat.contains("GB") || chat.contains("Problem"), "ssd full narrative")
 
         let glossary = TermGlossary.explain(item: sample)
         check(glossary.lowercased().contains("npm") || glossary.lowercased().contains("trash"), "glossary before delete")

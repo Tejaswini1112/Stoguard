@@ -5,9 +5,11 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 	"time"
 
+	"github.com/stoguard/stoguard/internal/fleet"
 	"github.com/stoguard/stoguard/internal/models"
 	"github.com/stoguard/stoguard/internal/platform"
 )
@@ -85,6 +87,8 @@ type CloudBenchmark struct {
 	AverageBytes   int64  `json:"averageBytes"`
 	YourBytes      int64  `json:"yourBytes"`
 	Recommendation string `json:"recommendation"`
+	Source         string `json:"source,omitempty"`
+	SampleSize     *int   `json:"sampleSize,omitempty"`
 }
 
 type Snapshot struct {
@@ -403,39 +407,118 @@ func proactive(result *models.ScanResult, hist []models.HistoryEntry, sys platfo
 	return alerts
 }
 
+func BenchmarksPublic(result *models.ScanResult, optIn bool) []CloudBenchmark {
+	return benchmarks(result, optIn)
+}
+
 func benchmarks(result *models.ScanResult, optIn bool) []CloudBenchmark {
 	if !optIn || result == nil {
 		return nil
 	}
-	cohorts := []struct {
-		key, label string
-		avg        int64
-	}{
-		{"flutter", "Flutter", 9_000_000_000},
-		{"docker", "Docker", 15_000_000_000},
-		{"npm", "npm", 2_000_000_000},
-		{"ollama", "Ollama", 12_000_000_000},
-		{"derived", "Xcode DerivedData", 8_000_000_000},
+	baselines := map[string]int64{
+		"docker": 18_000_000_000, "deriveddata": 10_000_000_000, "npm": 2_500_000_000,
+		"ollama": 14_000_000_000, "huggingface": 20_000_000_000, "gradle": 6_000_000_000,
+		"flutter": 9_000_000_000, "wsl": 30_000_000_000, "nuget": 3_000_000_000,
+		"flatpak": 5_000_000_000, "cargo": 4_000_000_000, "pip": 3_000_000_000,
 	}
+	labels := map[string]string{
+		"docker": "Docker", "deriveddata": "Xcode DerivedData", "npm": "npm cache",
+		"ollama": "Ollama models", "huggingface": "Hugging Face", "gradle": "Gradle",
+		"flutter": "Flutter / pub-cache", "wsl": "WSL", "nuget": "NuGet",
+		"flatpak": "Flatpak", "cargo": "Cargo", "pip": "pip / Python",
+	}
+	yours := fleet.CohortMetrics(result)
+	peerAvgs, peerCounts := peerAveragesFromFleet()
 	var out []CloudBenchmark
-	for _, c := range cohorts {
-		var yours int64
-		for _, it := range result.Items {
-			n := strings.ToLower(it.Name + " " + it.Path + " " + it.Category)
-			if strings.Contains(n, c.key) || strings.Contains(n, strings.ToLower(c.label)) {
-				yours += it.SizeBytes
-			}
+	for id, yourBytes := range yours {
+		avg := baselines[id]
+		if avg == 0 {
+			avg = yourBytes
 		}
-		if yours == 0 {
-			continue
+		source := "baseline"
+		var samples *int
+		if remote := remoteCohortAvg(id); remote > 0 {
+			avg = remote
+			source = "remote"
+		} else if p, ok := peerAvgs[id]; ok && peerCounts[id] >= 2 {
+			avg = p
+			source = "fleet-peers"
+			n := peerCounts[id]
+			samples = &n
 		}
 		rec := "Within a normal range for this cohort."
-		if yours > c.avg*2 {
-			rec = "Clean or archive — you’re well above peers."
+		ratio := float64(yourBytes) / float64(max64(1, avg))
+		if ratio >= 2.5 {
+			rec = "Well above cohort — prioritize cleanup / archive."
+		} else if ratio >= 1.4 {
+			rec = "Above average — good reclaim candidate."
+		} else if ratio <= 0.6 {
+			rec = "Below cohort average — healthy relative to peers."
 		}
-		out = append(out, CloudBenchmark{ID: c.key, Cohort: c.label, AverageBytes: c.avg, YourBytes: yours, Recommendation: rec})
+		out = append(out, CloudBenchmark{
+			ID: id, Cohort: labels[id], AverageBytes: avg, YourBytes: yourBytes,
+			Recommendation: rec, Source: source, SampleSize: samples,
+		})
 	}
+	sort.Slice(out, func(i, j int) bool { return out[i].YourBytes > out[j].YourBytes })
 	return out
+}
+
+func peerAveragesFromFleet() (map[string]int64, map[string]int) {
+	list, err := fleet.List()
+	if err != nil {
+		return map[string]int64{}, map[string]int{}
+	}
+	sums := map[string]int64{}
+	counts := map[string]int{}
+	for _, m := range list {
+		for k, v := range m.CohortMetrics {
+			if v <= 0 {
+				continue
+			}
+			sums[k] += v
+			counts[k]++
+		}
+	}
+	avgs := map[string]int64{}
+	for k, s := range sums {
+		avgs[k] = s / int64(max(1, counts[k]))
+	}
+	return avgs, counts
+}
+
+func remoteCohortAvg(id string) int64 {
+	url := os.Getenv("STOGUARD_COHORT_FEED")
+	if url == "" {
+		return 0
+	}
+	// Cached file only — refresh via separate tooling to keep scan fast.
+	path := filepath.Join(platform.DataDir(), "cohort-remote.json")
+	b, err := os.ReadFile(path)
+	if err != nil {
+		return 0
+	}
+	var feed struct {
+		Averages map[string]int64 `json:"averages"`
+	}
+	if json.Unmarshal(b, &feed) != nil {
+		return 0
+	}
+	return feed.Averages[id]
+}
+
+func max64(a, b int64) int64 {
+	if a > b {
+		return a
+	}
+	return b
+}
+
+func max(a, b int) int {
+	if a > b {
+		return a
+	}
+	return b
 }
 
 func Articles() []LearningArticle {

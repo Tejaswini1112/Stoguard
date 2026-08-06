@@ -16,6 +16,8 @@ const state = {
   history: [],
   fleet: [],
   intelligence: null,
+  media: [],
+  mediaNote: "",
   view: "overview",
   scanning: false,
   scanAutomation: localStorage.getItem(AUTO_KEY) === "1",
@@ -32,6 +34,7 @@ const titles = {
   duplicates: ["Duplicates", "Overlapping caches and installs"],
   aicleanup: ["AI Cleanup", "Models, skills, MCP, and AI caches — clean safe items immediately"],
   packages: ["Package Finder", "Each install with a definition and how much disk it uses"],
+  media: ["Media Optimizer", "Large images, videos, documents — detect now; optimize in the macOS app"],
   history: ["Storage Timeline", "Reclaimable safe space over time"],
   items: ["All Findings", "Everything the scanner measured"],
   fleet: ["Fleet", "Team machine rollup"],
@@ -500,6 +503,50 @@ function packageCachesFromScan() {
   return items.filter((it) => (it.category || "") === "Package Managers");
 }
 
+async function loadMedia() {
+  try {
+    const data = await api("/api/media");
+    state.media = data.assets || [];
+    state.mediaNote = data.note || "";
+  } catch (e) {
+    state.media = [];
+    state.mediaNote = e.message;
+  }
+}
+
+function renderMedia() {
+  const el = $("#view-media");
+  if (!el) return;
+  const rows = (state.media || [])
+    .map(
+      (a) => `<div class="row" style="grid-template-columns:1fr auto auto;gap:10px">
+      <div><div class="name">${escapeHtml(a.name)}</div>
+      <div class="hint">${escapeHtml(a.kind)} · ${escapeHtml(a.path)}</div></div>
+      <div class="size">${fmtBytes(a.sizeBytes)}</div>
+      <button class="btn small" data-reveal="${escapeHtml(a.path)}">Reveal</button>
+    </div>`
+    )
+    .join("");
+  el.innerHTML = `
+    <div class="card wide">
+      <h3>Large media detected</h3>
+      <p>${escapeHtml(state.mediaNote || "Scan Downloads, Documents, Desktop, Pictures, Movies for oversized files.")}</p>
+      <p class="hint">Optimize with approval (keep resolution, or target KB/MB/GB/TB) in the native macOS <strong>Media Optimizer</strong>.</p>
+      <button class="btn primary" id="scan-media" style="margin-top:12px">Scan large media</button>
+    </div>
+    <div class="list" style="margin-top:14px">${rows || `<div class="empty">No oversized media found yet — click Scan.</div>`}</div>`;
+  const btn = $("#scan-media");
+  if (btn) {
+    btn.onclick = async () => {
+      btn.disabled = true;
+      btn.textContent = "Scanning…";
+      await loadMedia();
+      renderMedia();
+      bindActions();
+    };
+  }
+}
+
 function renderPackages() {
   const el = $("#view-packages");
   if (!el) return;
@@ -683,18 +730,41 @@ function renderDuplicates() {
     return;
   }
   if (!groups.length) {
-    el.innerHTML = `<div class="empty">No obvious duplicate groups found.</div>`;
+    el.innerHTML = `<div class="empty">No confirmed duplicates or related groups found.</div>`;
     return;
   }
-  el.innerHTML = `<div class="list">${groups
-    .map(
-      (g) => `<div class="card wide" style="margin-bottom:12px">
-      <h3>${escapeHtml(g.label)} <span class="badge check">${escapeHtml(g.kind)}</span></h3>
-      <p>${escapeHtml(g.advice)} · potential waste ${fmtBytes(g.wasteBytes)}</p>
+  const confirmed = groups.filter((g) => g.verdict === "duplicate");
+  const related = groups.filter((g) => g.verdict !== "duplicate");
+  const card = (g) => {
+    const badge =
+      g.verdict === "duplicate"
+        ? `<span class="badge check">DUPLICATE</span>`
+        : `<span class="badge">NOT A DUPLICATE</span>`;
+    const diffs = (g.differences || [])
+      .map(
+        (d) => `<div class="hint" style="margin:4px 0">✦ <strong>${escapeHtml(d.label)}</strong> — ${escapeHtml(d.detail)}</div>`
+      )
+      .join("");
+    const waste =
+      g.verdict === "duplicate" && g.wasteBytes
+        ? ` · reclaimable ${fmtBytes(g.wasteBytes)}`
+        : "";
+    return `<div class="card wide" style="margin-bottom:12px">
+      <h3>${escapeHtml(g.label)} ${badge}</h3>
+      <p>${escapeHtml(g.advice)}${waste}</p>
+      ${diffs ? `<div style="margin:10px 0;padding:8px;border-radius:8px;background:rgba(127,160,190,.12)">${diffs}</div>` : ""}
       <div class="list" style="margin-top:12px">${g.items.map((it) => itemRow(it, { showChildren: false })).join("")}</div>
-    </div>`
-    )
-    .join("")}</div>`;
+    </div>`;
+  };
+  el.innerHTML = `
+    ${confirmed.length ? `<h3 style="margin:8px 0">Confirmed duplicates</h3>${confirmed.map(card).join("")}` : ""}
+    ${
+      related.length
+        ? `<h3 style="margin:16px 0 8px">Related — not duplicates</h3>
+           <p class="hint">Compared thoroughly; differences are listed. These are not reclaimable duplicate waste.</p>
+           ${related.map(card).join("")}`
+        : ""
+    }`;
 }
 
 function renderAICleanup() {
@@ -904,6 +974,7 @@ function render() {
   renderDuplicates();
   renderAICleanup();
   renderPackages();
+  renderMedia();
   renderHistory();
   renderItems();
   renderFleet();

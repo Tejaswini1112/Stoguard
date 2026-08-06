@@ -29,6 +29,7 @@ struct SectionDetailView: View {
                 case .agentTools: AgentToolsView()
                 case .gitRepos: GitReposView()
                 case .codebase: CodebaseView()
+                case .mediaOptimizer: MediaOptimizerView()
                 case .rulesPlugins: RulesPluginsView()
                 case .fleet: FleetExportView()
                 case .installedApps: InstalledAppsView()

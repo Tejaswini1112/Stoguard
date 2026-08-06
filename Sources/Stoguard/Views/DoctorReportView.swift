@@ -360,17 +360,34 @@ private struct RecommendationCard: View {
             .buttonStyle(.plain)
 
             if expanded {
-                Text(rec.explanation)
-                    .font(.caption)
-                    .foregroundStyle(Theme.secondaryText)
-                    .fixedSize(horizontal: false, vertical: true)
-                    .padding(10)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .background(Theme.navy.opacity(0.05), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+                VStack(alignment: .leading, spacing: 8) {
+                    Text(rec.explanation)
+                        .font(.caption)
+                        .foregroundStyle(Theme.secondaryText)
+                        .fixedSize(horizontal: false, vertical: true)
+
+                    if let ex = rec.explainability {
+                        explainRow("Why?", ex.why)
+                        explainRow("What happens if I do this?", ex.whatHappens)
+                        explainRow("Can I undo it?", ex.canUndo)
+                        explainRow("What rebuilds automatically?", ex.whatRebuilds)
+                        explainRow("Is this common?", ex.isCommon)
+                    }
+                }
+                .padding(10)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(Theme.navy.opacity(0.05), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
             }
         }
         .padding(12)
         .elevatedCard(radius: 10)
+    }
+
+    private func explainRow(_ title: String, _ body: String) -> some View {
+        VStack(alignment: .leading, spacing: 2) {
+            Text(title).font(.system(size: 10, weight: .bold)).foregroundStyle(Theme.navy.opacity(0.8))
+            Text(body).font(.caption).foregroundStyle(Theme.secondaryText).fixedSize(horizontal: false, vertical: true)
+        }
     }
 
     @ViewBuilder

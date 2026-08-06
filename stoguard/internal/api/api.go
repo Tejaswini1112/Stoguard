@@ -7,6 +7,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"strings"
 	"sync"
 
 	"github.com/stoguard/stoguard/internal/agenttools"
@@ -16,6 +17,7 @@ import (
 	"github.com/stoguard/stoguard/internal/fleet"
 	"github.com/stoguard/stoguard/internal/history"
 	"github.com/stoguard/stoguard/internal/intelligence"
+	"github.com/stoguard/stoguard/internal/media"
 	"github.com/stoguard/stoguard/internal/models"
 	"github.com/stoguard/stoguard/internal/packages"
 	"github.com/stoguard/stoguard/internal/platform"
@@ -26,6 +28,7 @@ import (
 
 type Server struct {
 	RulesDir string
+	APIKey   string // if set, require X-Stoguard-Key on /api/* (except /api/status)
 	Engine   *scanner.Engine
 	mu       sync.RWMutex
 	last     *models.ScanResult
@@ -59,11 +62,33 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("/api/fleet", s.handleFleet)
 	mux.HandleFunc("/api/fleet/ingest", s.handleFleetIngest)
 	mux.HandleFunc("/api/fleet/export", s.handleFleetExport)
+	mux.HandleFunc("/api/fleet/summary", s.handleFleetSummary)
+	mux.HandleFunc("/api/fleet/delete", s.handleFleetDelete)
 	mux.HandleFunc("/api/intelligence", s.handleIntelligence)
 	mux.HandleFunc("/api/automation", s.handleAutomation)
 	mux.HandleFunc("/api/preference", s.handlePreference)
 	mux.HandleFunc("/api/learning", s.handleLearning)
-	return mux
+	mux.HandleFunc("/api/media", s.handleMedia)
+	mux.HandleFunc("/api/cohort", s.handleCohort)
+	return s.withAPIKey(mux)
+}
+
+func (s *Server) withAPIKey(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if s.APIKey == "" || r.URL.Path == "/api/status" || !strings.HasPrefix(r.URL.Path, "/api/") {
+			next.ServeHTTP(w, r)
+			return
+		}
+		key := r.Header.Get("X-Stoguard-Key")
+		if key == "" {
+			key = r.URL.Query().Get("key")
+		}
+		if key != s.APIKey {
+			http.Error(w, "unauthorized — set X-Stoguard-Key", http.StatusUnauthorized)
+			return
+		}
+		next.ServeHTTP(w, r)
+	})
 }
 
 func (s *Server) handleStatus(w http.ResponseWriter, r *http.Request) {
@@ -71,7 +96,7 @@ func (s *Server) handleStatus(w http.ResponseWriter, r *http.Request) {
 	sys := platform.CollectSystem()
 	writeJSON(w, models.AppStatus{
 		Name:     "Stoguard",
-		Version:  "0.4.0",
+		Version:  "0.4.2",
 		Platform: platform.OS(),
 		OS:       runtime.GOOS,
 		Arch:     runtime.GOARCH,
@@ -334,6 +359,63 @@ func (s *Server) handleFleetExport(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, fleet.FromScan(last))
 }
 
+func (s *Server) handleFleetSummary(w http.ResponseWriter, r *http.Request) {
+	if !tier.Allows("fleet_admin") {
+		http.Error(w, "Team fleet console requires Team tier", http.StatusPaymentRequired)
+		return
+	}
+	sum, err := fleet.Summary()
+	if err != nil {
+		http.Error(w, err.Error(), 500)
+		return
+	}
+	writeJSON(w, sum)
+}
+
+func (s *Server) handleFleetDelete(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost && r.Method != http.MethodDelete {
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	if !tier.Allows("fleet_admin") {
+		http.Error(w, "Team fleet console requires Team tier", http.StatusPaymentRequired)
+		return
+	}
+	id := r.URL.Query().Get("id")
+	if id == "" {
+		var body struct {
+			ID string `json:"id"`
+		}
+		_ = json.NewDecoder(r.Body).Decode(&body)
+		id = body.ID
+	}
+	if id == "" {
+		http.Error(w, "missing id", 400)
+		return
+	}
+	if err := fleet.Delete(id); err != nil {
+		http.Error(w, err.Error(), 500)
+		return
+	}
+	writeJSON(w, map[string]string{"status": "ok"})
+}
+
+func (s *Server) handleCohort(w http.ResponseWriter, r *http.Request) {
+	auto := intelligence.LoadAutomation()
+	if !auto.CloudOptIn {
+		writeJSON(w, map[string]any{"enabled": false, "benchmarks": []any{}})
+		return
+	}
+	s.mu.RLock()
+	last := s.last
+	s.mu.RUnlock()
+	writeJSON(w, map[string]any{
+		"enabled":    true,
+		"benchmarks": intelligence.BenchmarksPublic(last, true),
+		"note":       "Baselines + fleet-peer averages. Optional remote feed via STOGUARD_COHORT_FEED.",
+	})
+}
+
 func (s *Server) handleIntelligence(w http.ResponseWriter, r *http.Request) {
 	s.mu.RLock()
 	last := s.last
@@ -343,6 +425,14 @@ func (s *Server) handleIntelligence(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) handleLearning(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, intelligence.Articles())
+}
+
+func (s *Server) handleMedia(w http.ResponseWriter, r *http.Request) {
+	assets := media.Scan(200)
+	writeJSON(w, map[string]any{
+		"assets": assets,
+		"note":   "Detection is cross-platform. Approve-and-optimize (keep resolution or target KB/MB/GB/TB) runs in the native macOS Media Optimizer.",
+	})
 }
 
 func (s *Server) handleAutomation(w http.ResponseWriter, r *http.Request) {

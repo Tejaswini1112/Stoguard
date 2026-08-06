@@ -1,7 +1,45 @@
 import Foundation
 import Darwin
+import UserNotifications
 
 // MARK: - System health (CPU / RAM / disk)
+
+struct PulseSample: Codable, Identifiable, Hashable, Sendable {
+    var id: String { "\(date.timeIntervalSince1970)" }
+    let date: Date
+    let cpu: Double
+    let memory: Double
+    let disk: Double
+}
+
+enum PulseHistory {
+    private static var fileURL: URL {
+        SupportPaths.directory.appendingPathComponent("pulse-history.json")
+    }
+
+    static func load() -> [PulseSample] {
+        guard let data = try? Data(contentsOf: fileURL) else { return [] }
+        let dec = JSONDecoder()
+        dec.dateDecodingStrategy = .iso8601
+        return (try? dec.decode([PulseSample].self, from: data)) ?? []
+    }
+
+    static func append(_ pulse: SystemPulse) {
+        SupportPaths.ensureDirectory()
+        var samples = load()
+        samples.append(PulseSample(
+            date: pulse.sampledAt,
+            cpu: pulse.cpuBusyPercent,
+            memory: pulse.memoryUsedPercent,
+            disk: pulse.diskUsedPercent
+        ))
+        if samples.count > 96 { samples = Array(samples.suffix(96)) }
+        let enc = JSONEncoder()
+        enc.dateEncodingStrategy = .iso8601
+        guard let data = try? enc.encode(samples) else { return }
+        try? data.write(to: fileURL, options: .atomic)
+    }
+}
 
 struct SystemPulse: Sendable {
     var cpuBusyPercent: Double
@@ -170,14 +208,32 @@ final class ContinuousMonitor: ObservableObject {
     @Published var enabled: Bool = UserDefaults.standard.bool(forKey: "stoguard.monitorEnabled")
     @Published var lastPulse: SystemPulse?
     @Published var alert: String?
+    @Published var watchEvents: [BackgroundWatchEvent] = []
+
+    /// Minutes between ticks (default 10; was 15).
+    var intervalMinutes: Double {
+        get {
+            let v = UserDefaults.standard.double(forKey: "stoguard.monitorIntervalMinutes")
+            return v > 0 ? v : 10
+        }
+        set { UserDefaults.standard.set(newValue, forKey: "stoguard.monitorIntervalMinutes") }
+    }
 
     private var timer: Timer?
     private var lastFree: Int64?
+    private var itemsProvider: (() -> [ScanItem])?
+    private var modelsProvider: (() -> [AIModelEntry])?
+
+    func configure(items: @escaping () -> [ScanItem], models: @escaping () -> [AIModelEntry]) {
+        itemsProvider = items
+        modelsProvider = models
+    }
 
     func start(onDiskDrop: @escaping (Int64) -> Void) {
         timer?.invalidate()
         guard enabled else { return }
-        timer = Timer.scheduledTimer(withTimeInterval: 15 * 60, repeats: true) { [weak self] _ in
+        let secs = max(120, intervalMinutes * 60)
+        timer = Timer.scheduledTimer(withTimeInterval: secs, repeats: true) { [weak self] _ in
             Task { @MainActor in
                 self?.tick(onDiskDrop: onDiskDrop)
             }
@@ -199,11 +255,13 @@ final class ContinuousMonitor: ObservableObject {
     private func tick(onDiskDrop: (Int64) -> Void) {
         let pulse = SystemHealth.snapshot()
         lastPulse = pulse
+        PulseHistory.append(pulse)
         var fired = false
         if let prev = lastFree {
             let dropped = prev - pulse.diskFreeBytes
-            if dropped > 2_000_000_000 { // 2 GB free space lost
+            if dropped > 2_000_000_000 {
                 alert = "Free space dropped \(ByteText.storage(dropped)) since last check — open Health for explain → recommend → fix."
+                notify(title: "Stoguard — disk dropping", body: alert ?? "")
                 onDiskDrop(dropped)
                 fired = true
             }
@@ -211,10 +269,42 @@ final class ContinuousMonitor: ObservableObject {
         lastFree = pulse.diskFreeBytes
         if pulse.diskUsedPercent > 92 {
             alert = "Disk critically full (\(Int(pulse.diskUsedPercent))%). Open Health → clean safe caches first."
+            notify(title: "Stoguard — disk critical", body: alert ?? "")
             if !fired { onDiskDrop(0) }
         } else if pulse.memoryUsedPercent > 92 {
             alert = "Memory pressure high (\(Int(pulse.memoryUsedPercent))%). Close idle AI models / heavy IDEs, then check Pulse."
+            notify(title: "Stoguard — memory pressure", body: alert ?? "")
             if !fired { onDiskDrop(0) }
+        }
+
+        let items = itemsProvider?() ?? []
+        let models = modelsProvider?() ?? []
+        let events = BackgroundIntelligence.evaluateTick(items: items, models: models, pulse: pulse)
+        if !events.isEmpty {
+            watchEvents = (events + watchEvents).prefix(20).map { $0 }
+            if let first = events.first {
+                alert = "\(first.title) — \(first.body)"
+                if first.severity == "warn" || first.severity == "critical" {
+                    notify(title: "Stoguard — \(first.title)", body: first.body)
+                }
+            }
+        }
+    }
+
+    private func notify(title: String, body: String) {
+        let center = UNUserNotificationCenter.current()
+        center.requestAuthorization(options: [.alert, .sound]) { ok, _ in
+            guard ok else { return }
+            let content = UNMutableNotificationContent()
+            content.title = title
+            content.body = body
+            content.sound = .default
+            let req = UNNotificationRequest(
+                identifier: "stoguard-\(UUID().uuidString)",
+                content: content,
+                trigger: nil
+            )
+            center.add(req, withCompletionHandler: nil)
         }
     }
 }

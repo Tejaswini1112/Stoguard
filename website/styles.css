@@ -63,6 +63,14 @@ body {
 
 a { color: inherit; text-decoration: none; }
 .muted { color: var(--muted); }
+.muted a,
+a.link-out {
+  color: var(--accent, #7eb0d4);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.muted a:hover,
+a.link-out:hover { opacity: 0.9; }
 
 /* Nav */
 .nav {

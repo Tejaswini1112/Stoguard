@@ -14,11 +14,13 @@ Stoguard is built to run on your machine. Scan data stays local by default.
 
 | Feature | When it talks to the network |
 |---------|------------------------------|
-| **Optional cloud rules feed** | Only if you set `stoguard.rulesFeedURL` (legacy key `vacs.rulesFeedURL` still read) |
+| **Optional cloud rules feed** | Only if you set `stoguard.rulesFeedURL` |
+| **Cloud cohort feed / contribute** | Only if cohort opt-in **and** you set `stoguard.cohortFeedURL` / `stoguard.cohortContributeURL` (or env `STOGUARD_COHORT_*`). Payloads are anonymous category bytes — no hostname or paths. |
+| **Enterprise fleet push** | Only when you push to a Team server URL you configure |
 | **Ask Stoguard + Ollama** | Only if you enable Ollama chat — calls `http://127.0.0.1:11434` on your Mac |
 | **Everything else** | No analytics, crash reporters, ad SDKs, or phone-home |
 
-There is **no telemetry by default**.
+There is **no telemetry by default**. Fleet JSON and cohort peer averages stay in Application Support / your Team server unless you opt to push.
 
 ## Verification
 

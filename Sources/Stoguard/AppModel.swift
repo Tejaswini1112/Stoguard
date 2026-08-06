@@ -80,7 +80,10 @@ final class AppModel: ObservableObject {
     @Published var isLoadingGit = false
     @Published var codebasePath: String = NSHomeDirectory() + "/Developer"
     @Published var codebaseFindings: [CodebaseFinding] = []
+    @Published var secretFindings: [SecretFinding] = []
     @Published var isLoadingCodebase = false
+    @Published var aiRuntimeUsage: AIRuntimeUsage?
+    @Published var categoryForecasts: [CategoryForecast] = []
     @Published var buildTrends = BuildTrendStore.load()
     @Published var rulesMeta: CloudRules.Meta?
     @Published var rulesRefreshing = false
@@ -96,8 +99,23 @@ final class AppModel: ObservableObject {
     @Published var preferenceMemory = PreferenceMemory.load()
     @Published var automation = AutomationStore.load()
     @Published var cloudBenchmarks: [CloudBenchmark] = []
+    @Published var fleetMachines: [FleetMachineRecord] = []
+    @Published var fleetSummary: FleetSummary?
+    @Published var cohortStatus: String?
+    @Published var enterpriseRemoteURL: String = UserDefaults.standard.string(forKey: "stoguard.fleetRemoteURL") ?? ""
+    @Published var enterpriseAPIKey: String = UserDefaults.standard.string(forKey: "stoguard.fleetAPIKey") ?? ""
+    @Published var isPushingFleet = false
     @Published var repoInsights: [RepoInsight] = []
     @Published var repoInsightTotal: Int64 = 0
+    @Published var mediaAssets: [MediaAsset] = []
+    @Published var mediaLoaded = false
+    @Published var isLoadingMedia = false
+    @Published var mediaSelection: Set<String> = []
+    @Published var mediaOptimizePrompt: MediaOptimizePrompt?
+    @Published var isOptimizingMedia = false
+    @Published var mediaOptimizeResults: [MediaOptimizeResult] = []
+    private var pendingMediaMode: MediaOptimizeMode = .losslessKeepResolution
+    private var pendingMediaTarget: Int64?
 
     /// Shown before any trash operation — user must confirm every time.
     @Published var cleanPrompt: CleanPrompt?
@@ -330,6 +348,7 @@ final class AppModel: ObservableObject {
             selectedSection = target
             closeDetail()
         }
+        if target == .mediaOptimizer, !mediaLoaded { scanMediaAssets() }
         if target == .packageFinder {
             loadPackageFinder()
         }
@@ -389,12 +408,15 @@ final class AppModel: ObservableObject {
     func bootstrapPlatform() {
         PluginLoader.ensureScaffold()
         rulesMeta = CloudRules.loadMeta()
+        continuousMonitor.configure(
+            items: { [weak self] in self?.items ?? [] },
+            models: { [weak self] in self?.aiModels ?? [] }
+        )
         continuousMonitor.start { [weak self] _ in
             self?.monitorAlert = self?.continuousMonitor.alert
             self?.refreshIntelligence()
         }
         refreshIntelligence()
-        // Background rules refresh (non-blocking)
         Task { await refreshCloudRules(silent: true) }
     }
 
@@ -1070,6 +1092,7 @@ final class AppModel: ObservableObject {
     func refreshPulse() {
         Task.detached(priority: .utility) {
             let pulse = SystemHealth.snapshot()
+            PulseHistory.append(pulse)
             await MainActor.run { self.systemPulse = pulse }
         }
     }
@@ -1152,16 +1175,71 @@ final class AppModel: ObservableObject {
         }
     }
 
+    func scanMediaAssets() {
+        guard !isLoadingMedia else { return }
+        isLoadingMedia = true
+        Task.detached(priority: .userInitiated) {
+            let found = MediaOptimizer.scan()
+            await MainActor.run {
+                self.mediaAssets = found
+                self.mediaLoaded = true
+                self.isLoadingMedia = false
+                self.mediaSelection = Set(found.prefix(20).map(\.id))
+                if let top = found.first, top.sizeBytes > 200_000_000 {
+                    self.monitorAlert = "Large \(top.kind.label.lowercased()) detected: \(top.name) (\(top.sizeText)). Open Media Optimizer to approve compression."
+                }
+            }
+        }
+    }
+
+    func requestMediaOptimize(mode: MediaOptimizeMode, targetBytes: Int64?) {
+        let assets = mediaAssets.filter { mediaSelection.contains($0.id) }
+        guard !assets.isEmpty else { return }
+        pendingMediaMode = mode
+        pendingMediaTarget = targetBytes
+        mediaOptimizePrompt = MediaOptimizePrompt(assets: assets, mode: mode, targetBytes: targetBytes)
+    }
+
+    func cancelMediaOptimize() {
+        mediaOptimizePrompt = nil
+    }
+
+    func executeMediaOptimize() async {
+        guard let prompt = mediaOptimizePrompt else { return }
+        mediaOptimizePrompt = nil
+        isOptimizingMedia = true
+        let assets = prompt.assets
+        let mode = pendingMediaMode
+        let target = pendingMediaTarget
+        let results = await Task.detached(priority: .userInitiated) {
+            await MediaOptimizer.optimize(assets: assets, mode: mode, targetBytes: target)
+        }.value
+        mediaOptimizeResults = results
+        isOptimizingMedia = false
+        let saved = results.reduce(Int64(0)) { $0 + $1.savedBytes }
+        if saved > 0 {
+            pathSafetyNotice = "Optimized \(results.count) file(s) — saved \(ByteText.string(saved)). Originals are in Trash."
+            SystemSound.playMoveToTrash()
+        } else {
+            pathSafetyNotice = "No additional savings — files already efficient or unsupported."
+        }
+        scanMediaAssets()
+        refreshDisk()
+        refreshTrashSummary()
+    }
+
     func analyzeCodebase() {
         let path = codebasePath
         isLoadingCodebase = true
         Task.detached(priority: .userInitiated) {
             let findings = CodebaseAnalyzer.analyze(root: path)
             let intel = RepoIntelligence.analyze(root: path)
+            let secrets = SecretsScanner.scan(root: path)
             await MainActor.run {
                 self.codebaseFindings = findings
                 self.repoInsights = intel.insights
                 self.repoInsightTotal = intel.total
+                self.secretFindings = secrets
                 self.isLoadingCodebase = false
             }
         }
@@ -1224,13 +1302,21 @@ final class AppModel: ObservableObject {
             env: envFindings,
             prefs: preferenceMemory
         )
+        if let report = healthReport {
+            HealthHistory.append(report)
+        }
         predictiveInsights = PredictiveEngine.insights(
             history: scanHistory.entries, pulse: pulse, items: items
         )
+        categoryForecasts = HotspotTracker.forecasts(items: items)
+        aiRuntimeUsage = AIRuntimeMonitor.snapshot()
         proactiveAlerts = ProactiveEngine.evaluate(
-            items: items, history: scanHistory.entries, pulse: pulse, prefs: preferenceMemory
+            items: items, history: scanHistory.entries, pulse: pulse, prefs: preferenceMemory,
+            media: mediaAssets
         )
         cloudBenchmarks = CloudIntelligence.benchmarks(items: items, optIn: automation.cloudOptIn)
+        fleetMachines = FleetStore.list()
+        fleetSummary = FleetStore.summary()
         if let alert = proactiveAlerts.first {
             monitorAlert = "\(alert.title) — \(alert.recommendation)"
         }
@@ -1240,6 +1326,26 @@ final class AppModel: ObservableObject {
         automation.cloudOptIn = on
         automation.save()
         refreshIntelligence()
+        if on {
+            Task {
+                let msg = await CloudIntelligence.refreshRemote()
+                let contrib = await CloudIntelligence.contributeRemote(items: items)
+                await MainActor.run {
+                    self.cohortStatus = [msg, contrib].compactMap { $0 }.joined(separator: " · ")
+                    self.refreshIntelligence()
+                }
+            }
+        }
+    }
+
+    func refreshCohortFeed() {
+        Task {
+            let msg = await CloudIntelligence.refreshRemote()
+            await MainActor.run {
+                self.cohortStatus = msg
+                self.refreshIntelligence()
+            }
+        }
     }
 
     func setAutomationRule(id: String, enabled: Bool) {
@@ -1279,11 +1385,17 @@ final class AppModel: ObservableObject {
                 let safe = items.filter { $0.safety == .safe }
                 let bytes = safe.reduce(Int64(0)) { $0 + $1.sizeBytes }
                 if bytes >= rule.minBytes {
-                    monitorAlert = "Automation “\(rule.name)” ready: \(ByteText.string(bytes)) safe caches — review Overview to clean."
+                    selection = Set(safe.map(\.id))
+                    selectSection(.overview)
+                    monitorAlert = "Automation “\(rule.name)” staged \(ByteText.string(bytes)) safe caches — confirm Clean on Overview (never auto-deleted)."
                 }
             case "npmCache":
-                if let npm = items.first(where: { $0.name.localizedCaseInsensitiveContains("npm") && $0.sizeBytes >= rule.minBytes }) {
-                    monitorAlert = "Automation: \(npm.name) is \(npm.sizeText) — open Packages to clean."
+                if let npm = items.first(where: {
+                    $0.name.localizedCaseInsensitiveContains("npm") && $0.sizeBytes >= rule.minBytes
+                }) {
+                    selection = [npm.id]
+                    selectSection(.packageManagers)
+                    monitorAlert = "Automation staged \(npm.name) (\(npm.sizeText)) — confirm Clean when ready."
                 }
             default: break
             }
@@ -1308,15 +1420,22 @@ final class AppModel: ObservableObject {
         let welcome = WorkstationChat.Message(
             id: UUID(), role: .assistant,
             text: """
-            Hi — I’m your AI Workstation Doctor. I use your last scan (and Ollama if it’s running).
+            Hi — I’m Ask Stoguard. I only reason from your scan, pulse, models, and Env Doctor — not the open web.
 
-            Try:
-            • Why is Docker taking so much space?
-            • What is DerivedData and is it safe to delete?
-            • Will my SSD fill up soon?
-            • Show my health score
+            Every answer follows: Problem → Cause → Explanation → Risk → Recommendation → One-click Fix → Learn More.
+
+            Try: Why is my Mac slow? · Why is Docker huge? · Why is Xcode using so much space? · Why is Ollama slow?
             """,
-            createdAt: Date()
+            createdAt: Date(),
+            briefing: MentorBriefing(
+                problem: "Ready when you are",
+                cause: "Mentor is grounded in your last scan (run Analyze if empty)",
+                explanation: "Ask why something is slow, huge, or full. I’ll diagnose with your numbers, then offer a one-click fix that stages — never silent-deletes.",
+                risk: "None until you confirm Clean / Empty Trash",
+                recommendation: "Pick a chip below or type a “why…” question.",
+                fix: MentorFix(label: "Open Workstation Doctor", kind: .openSection, section: .doctor),
+                learnMore: MentorLearnMore(label: "Learning Center", articleID: nil)
+            )
         )
         chatMessages = [welcome]
     }
@@ -1329,9 +1448,17 @@ final class AppModel: ObservableObject {
         chatBusy = true
         let ctx = chatContext()
         Task {
-            let answer = await WorkstationChat.answer(q, context: ctx)
+            let briefing = await WorkstationChat.mentorAnswer(q, context: ctx)
+            let knowledge = knowledgeCard(for: q, briefing: briefing, context: ctx)
             await MainActor.run {
-                self.chatMessages.append(.init(id: UUID(), role: .assistant, text: answer, createdAt: Date()))
+                self.chatMessages.append(.init(
+                    id: UUID(),
+                    role: .assistant,
+                    text: briefing.plainText,
+                    createdAt: Date(),
+                    briefing: briefing,
+                    knowledge: knowledge
+                ))
                 self.chatBusy = false
             }
         }
@@ -1342,6 +1469,68 @@ final class AppModel: ObservableObject {
         sendChat()
     }
 
+    func applyMentorFix(_ fix: MentorFix) {
+        switch fix.kind {
+        case .openSection, .openHealth, .openLearning:
+            if let section = fix.section { selectSection(section) }
+        case .trashSafeItem:
+            if let id = fix.itemID, items.contains(where: { $0.id == id }) {
+                selection = [id]
+                selectSection(fix.section ?? .overview)
+                monitorAlert = "Staged for Clean — confirm on Overview. Nothing is deleted until you Empty Trash."
+            }
+        case .trashSafeCategory:
+            let safe = items.filter { $0.safety == .safe }
+            selection = Set(safe.map(\.id))
+            selectSection(fix.section ?? .overview)
+            monitorAlert = "Staged \(safe.count) safe items — confirm Clean when ready."
+        case .copyCommand:
+            if let cmd = fix.command {
+                NSPasteboard.general.clearContents()
+                NSPasteboard.general.setString(cmd, forType: .string)
+                monitorAlert = "Copied: \(cmd)"
+                if let section = fix.section { selectSection(section) }
+            }
+        case .scan:
+            selectSection(.overview)
+            if !isScanning { scan() }
+        }
+        if let articleID = fix.articleID, fix.kind == .openLearning || fix.kind == .openSection {
+            selectSection(.learning)
+            chatInput = "Explain \(articleID)"
+        }
+    }
+
+    func applyMentorLearnMore(_ learn: MentorLearnMore) {
+        if let articleID = learn.articleID,
+           let article = LearningCenter.articles.first(where: { $0.id == articleID }) {
+            selectSection(.learning)
+            seedLearningPrompt(for: article)
+            return
+        }
+        if let prompt = learn.prompt, !prompt.isEmpty {
+            chatInput = prompt
+            sendChat()
+            return
+        }
+        selectSection(.learning)
+    }
+
+    private func knowledgeCard(
+        for question: String,
+        briefing: MentorBriefing,
+        context: WorkstationChat.Context
+    ) -> KnowledgeCard? {
+        let q = question.lowercased()
+        if let fromLearn = briefing.learnMore?.articleID {
+            return KnowledgeGraph.card(forTerm: fromLearn, context: context)
+        }
+        for term in ["derived", "xcode", "docker", "ollama", "npm", "model"] where q.contains(term) {
+            if let card = KnowledgeGraph.card(forTerm: term, context: context) { return card }
+        }
+        return nil
+    }
+
     private func chatContext() -> WorkstationChat.Context {
         WorkstationChat.Context(
             items: items,
@@ -1349,8 +1538,22 @@ final class AppModel: ObservableObject {
             pulse: systemPulse ?? continuousMonitor.lastPulse,
             duplicates: duplicateGroups,
             models: aiModels,
-            env: envFindings
+            env: envFindings,
+            health: healthReport,
+            predictions: predictiveInsights,
+            pulseHistory: PulseHistory.load()
         )
+    }
+
+    func archiveAIModel(_ model: AIModelEntry) {
+        do {
+            let dest = try AIModelOps.archiveToSupport(model)
+            pathSafetyNotice = "Archived to \(dest.path)"
+            loadAIModels()
+            refreshIntelligence()
+        } catch {
+            pathSafetyNotice = "Archive failed: \(error.localizedDescription)"
+        }
     }
 
     func trashAIModel(_ model: AIModelEntry) {
@@ -1365,21 +1568,78 @@ final class AppModel: ObservableObject {
     }
 
     func exportFleetReport() {
-        let report = FleetExport.build(
+        let report = EnterpriseBuilder.build(
             items: items,
             free: freeBytes,
             total: totalBytes,
             env: envFindings,
             duplicates: duplicateGroups,
-            rulesVersion: rulesMeta?.version
+            models: aiModels,
+            health: healthReport,
+            secretsCount: secretFindings.count
         )
         do {
-            let url = try FleetExport.writeJSON(report)
+            _ = try FleetStore.ingest(report)
+            SupportPaths.ensureDirectory()
+            let enc = JSONEncoder()
+            enc.outputFormatting = [.prettyPrinted, .sortedKeys]
+            enc.dateEncodingStrategy = .iso8601
+            let data = try enc.encode(report)
+            let url = SupportPaths.directory.appendingPathComponent(
+                "fleet-report-\(Int(Date().timeIntervalSince1970)).json"
+            )
+            try data.write(to: url, options: .atomic)
             fleetExportURL = url
-            fleetStatus = "Wrote \(url.lastPathComponent)"
+            fleetStatus = "Exported + ingested · compliance \(report.compliance?.score ?? 0)/100"
+            fleetMachines = FleetStore.list()
+            fleetSummary = FleetStore.summary()
             NSWorkspace.shared.activateFileViewerSelecting([url])
         } catch {
             fleetStatus = "Export failed: \(error.localizedDescription)"
+        }
+    }
+
+    func ingestSelfToFleet() {
+        exportFleetReport()
+    }
+
+    func deleteFleetMachine(_ id: String) {
+        FleetStore.delete(machineID: id)
+        fleetMachines = FleetStore.list()
+        fleetSummary = FleetStore.summary()
+    }
+
+    func pushFleetToRemote() {
+        UserDefaults.standard.set(enterpriseRemoteURL, forKey: "stoguard.fleetRemoteURL")
+        UserDefaults.standard.set(enterpriseAPIKey, forKey: "stoguard.fleetAPIKey")
+        guard let base = URL(string: enterpriseRemoteURL.trimmingCharacters(in: .whitespacesAndNewlines)),
+              !enterpriseRemoteURL.isEmpty else {
+            fleetStatus = "Set a Team server URL (e.g. http://fleet-host:8787)"
+            return
+        }
+        let report = EnterpriseBuilder.build(
+            items: items, free: freeBytes, total: totalBytes,
+            env: envFindings, duplicates: duplicateGroups, models: aiModels,
+            health: healthReport, secretsCount: secretFindings.count
+        )
+        isPushingFleet = true
+        Task {
+            do {
+                try await FleetStore.pushRemote(
+                    report: report,
+                    baseURL: base,
+                    apiKey: enterpriseAPIKey.isEmpty ? nil : enterpriseAPIKey
+                )
+                await MainActor.run {
+                    self.fleetStatus = "Pushed to \(base.host ?? base.absoluteString)"
+                    self.isPushingFleet = false
+                }
+            } catch {
+                await MainActor.run {
+                    self.fleetStatus = "Push failed: \(error.localizedDescription)"
+                    self.isPushingFleet = false
+                }
+            }
         }
     }
 }

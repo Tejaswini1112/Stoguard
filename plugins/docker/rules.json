@@ -1,0 +1,27 @@
+{
+  "id": "plugin-docker",
+  "name": "Docker extras",
+  "version": "1.1.0",
+  "platforms": ["macos", "linux", "windows"],
+  "description": "Extra Docker Buildx and builder cache paths beyond the bundled rules.",
+  "documentationURL": "https://docs.docker.com/build/cache/",
+  "author": "Stoguard",
+  "rules": [
+    {
+      "id": "plugin-docker-buildx",
+      "name": "Docker Buildx cache",
+      "path": "~/.docker/buildx",
+      "category": "Containers & K8s",
+      "safety": "command",
+      "note": "Buildx builder cache. Prefer `docker buildx prune` over deleting blindly.",
+      "explanation": "Buildx keeps layer and build cache for faster multi-platform builds.",
+      "riskLevel": "low",
+      "docsURL": "https://docs.docker.com/reference/cli/docker/buildx/prune/",
+      "safeActions": ["Copy: docker buildx prune", "Review ~/.docker/buildx before Trash"],
+      "whatRebuilds": "Next docker buildx build refills needed cache.",
+      "canUndo": "Pruned cache is not Put Back — rebuild instead.",
+      "isCommon": "Common for teams using BuildKit / multi-arch images.",
+      "command": "docker buildx prune"
+    }
+  ]
+}

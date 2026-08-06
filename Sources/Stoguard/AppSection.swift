@@ -18,6 +18,7 @@ enum AppSection: String, CaseIterable, Identifiable {
     case agentTools = "AI Skills & MCP"
     case gitRepos = "Git Repos"
     case codebase = "Codebase"
+    case mediaOptimizer = "Media Optimizer"
     case rulesPlugins = "Rules & Plugins"
     case fleet = "Fleet Export"
     case installedApps = "Installed Apps"
@@ -38,8 +39,8 @@ enum AppSection: String, CaseIterable, Identifiable {
     var ruleCategory: String? {
         switch self {
         case .overview, .health, .doctor, .ask, .learning, .automation, .pulse, .envDoctor, .buildTrends,
-             .aiCleanup, .aiModels, .duplicates, .packageFinder, .agentTools, .gitRepos, .codebase, .rulesPlugins, .fleet,
-             .installedApps, .about, .trash:
+             .aiCleanup, .aiModels, .duplicates, .packageFinder, .agentTools, .gitRepos, .codebase, .mediaOptimizer,
+             .rulesPlugins, .fleet, .installedApps, .about, .trash:
             return nil
         case .heavyFolders: return "Unknown heavy folders"
         default: return rawValue
@@ -64,6 +65,7 @@ enum AppSection: String, CaseIterable, Identifiable {
         case .agentTools: return "puzzlepiece.fill"
         case .gitRepos: return "arrow.triangle.branch"
         case .codebase: return "folder.badge.gearshape"
+        case .mediaOptimizer: return "photo.on.rectangle.angled"
         case .rulesPlugins: return "puzzlepiece.extension.fill"
         case .fleet: return "person.3.fill"
         case .installedApps: return "app.badge.fill"
@@ -83,23 +85,24 @@ enum AppSection: String, CaseIterable, Identifiable {
     var blurb: String {
         switch self {
         case .overview: return "Disk usage and reclaimable space at a glance."
-        case .health: return "Overall developer machine health score, predictions, and proactive alerts."
+        case .health: return "Scores, GB/day forecasts, background watches, and history."
         case .doctor: return "Plain-English diagnosis — what grew, what's unused, and what's safe to fix."
         case .ask: return "Conversational AI grounded in your scan — ask why Docker is huge, what DerivedData is, etc."
         case .learning: return "Teachable glossary — what terms mean, when to delete, what happens after."
         case .automation: return "Scheduled scans and safe tidy rules — plus opt-in cohort benchmarks."
         case .pulse: return "CPU, memory, and disk pressure — why the machine feels slow."
-        case .envDoctor: return "Brew, Node, Python, Java, Android SDK health checks."
+        case .envDoctor: return "Brew, Node, Python, Java, Android, Flutter, Rust, asdf/mise health."
         case .buildTrends: return "DerivedData / Gradle cache size over time."
         case .aiCleanup: return "Models, skills, MCP, and AI caches — one place for immediate AI cleanup."
-        case .aiModels: return "Ollama, Hugging Face, LM Studio, and other local model stores."
-        case .duplicates: return "Multiple Node/Python/Rust/simulator/model copies."
+        case .aiModels: return "Local AI workspace — sizes, last used, RAM/GPU, quants, archive."
+        case .duplicates: return "Fingerprint-confirmed duplicates — related installs show differences, not false dupes."
         case .packageFinder: return "Each installed package with a plain-English definition and disk space used."
         case .agentTools: return "MCP servers, AI skills, and idle editor extensions."
         case .gitRepos: return "Large .git folders, stashes, and branch sprawl."
-        case .codebase: return "Point at a repo — heavy folders and binaries."
-        case .rulesPlugins: return "Cloud rules feed + drop-in technology plugins."
-        case .fleet: return "Export a JSON workstation report for IT / teams."
+        case .codebase: return "Repository Doctor — secrets, dead deps, binaries, build artifacts."
+        case .mediaOptimizer: return "Find large images, videos, and documents — optimize with your approval."
+        case .rulesPlugins: return "Plugin SDK packs — detection, risk, safe actions, docs links."
+        case .fleet: return "Enterprise fleet — ingest, compliance, AI inventory, multi-OS."
         case .installedApps: return "See every file an app dropped on your Mac — caches, containers, preferences."
         case .developer: return "Xcode, simulators, IDE caches, and build artifacts."
         case .packageManagers: return "npm, Homebrew, pip, Cargo, Gradle, and other package caches."
@@ -125,7 +128,7 @@ enum AppSection: String, CaseIterable, Identifiable {
     static var optimizeTools: [AppSection] {
         // AI Models + Skills/MCP roll up into AI Cleanup for immediate cleanup.
         // Package Finder is the install inventory (brew/npm) — keep it prominent.
-        [.aiCleanup, .packageFinder, .duplicates, .gitRepos, .codebase]
+        [.aiCleanup, .packageFinder, .mediaOptimizer, .duplicates, .gitRepos, .codebase]
     }
 
     static var platformTools: [AppSection] {
@@ -174,8 +177,9 @@ enum AppSection: String, CaseIterable, Identifiable {
         case .agentTools: return "Skills/MCP"
         case .gitRepos: return "Git"
         case .codebase: return "Repo"
+        case .mediaOptimizer: return "Media"
         case .rulesPlugins: return "Rules"
-        case .fleet: return "Fleet"
+        case .fleet: return "Enterprise"
         case .packageManagers: return "Packages"
         case .browserAutomation: return "Browsers"
         case .containers: return "Containers"

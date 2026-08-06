@@ -27,9 +27,10 @@ enum HealthScore {
     ) -> HealthReport {
         let storage = storageScore(items: items, pulse: pulse)
         let performance = performanceScore(pulse: pulse, history: history, items: items)
+        let environment = environmentScore(env: env)
         let security = securityScore(env: env, items: items)
         let ai = aiWorkspaceScore(models: models, items: items)
-        let dims = [storage, performance, security, ai]
+        let dims = [storage, performance, environment, security, ai]
         let overall = dims.map(\.score).reduce(0, +) / max(1, dims.count)
         let headline: String
         switch overall {
@@ -38,8 +39,11 @@ enum HealthScore {
         case 55..<75: headline = "Pressure building — act on safe caches and idle AI models."
         default: headline = "Critical space/performance risk — clean and review now."
         }
-        _ = prefs // reserved for future personalization of weights
-        return HealthReport(overall: overall, dimensions: dims, headline: headline, generatedAt: Date())
+        // Soft personalization: habitual keeps nudge storage score up (less urgency to nag).
+        var adjusted = overall
+        let keepish = prefs.byKey.values.filter { $0.keepCount >= 2 && $0.keepCount > $0.cleanCount }.count
+        if keepish >= 3 { adjusted = min(100, adjusted + 3) }
+        return HealthReport(overall: adjusted, dimensions: dims, headline: headline, generatedAt: Date())
     }
 
     private static func storageScore(items: [ScanItem], pulse: SystemPulse?) -> HealthDimension {
@@ -85,6 +89,22 @@ enum HealthScore {
         )
     }
 
+    private static func environmentScore(env: [EnvFinding]) -> HealthDimension {
+        let warnings = env.filter { $0.severity == .warn }.count
+        let oks = env.filter { $0.severity == .ok }.count
+        var score = 92
+        score -= min(40, warnings * 8)
+        if env.isEmpty { score = 78 }
+        score = min(100, max(20, score))
+        return HealthDimension(
+            id: "environment", name: "Environment",
+            score: score,
+            detail: env.isEmpty
+                ? "Open Env Doctor to score Brew/Node/Python/SDK health."
+                : "\(oks) ok · \(warnings) warning(s) across toolchains."
+        )
+    }
+
     private static func securityScore(env: [EnvFinding], items: [ScanItem]) -> HealthDimension {
         var score = 92
         let warnings = env.filter { $0.severity == .warn }.count
@@ -118,6 +138,58 @@ enum HealthScore {
     }
 }
 
+// MARK: - Health history (daily / weekly / monthly)
+
+struct HealthSample: Codable, Identifiable, Hashable, Sendable {
+    var id: String { "\(Int(date.timeIntervalSince1970))" }
+    let date: Date
+    let overall: Int
+    let storage: Int
+    let performance: Int
+    let environment: Int
+    let security: Int
+    let ai: Int
+}
+
+enum HealthHistory {
+    private static let key = "stoguard.healthHistory.v1"
+
+    static func load() -> [HealthSample] {
+        guard let data = UserDefaults.standard.data(forKey: key),
+              let decoded = try? JSONDecoder().decode([HealthSample].self, from: data)
+        else { return [] }
+        return decoded
+    }
+
+    static func append(_ report: HealthReport) {
+        var samples = load()
+        let cal = Calendar.current
+        samples.removeAll { cal.isDate($0.date, inSameDayAs: report.generatedAt) }
+        let dim: (String) -> Int = { id in report.dimensions.first { $0.id == id }?.score ?? 0 }
+        samples.append(HealthSample(
+            date: report.generatedAt,
+            overall: report.overall,
+            storage: dim("storage"),
+            performance: dim("performance"),
+            environment: dim("environment"),
+            security: dim("security"),
+            ai: dim("ai")
+        ))
+        samples = Array(samples.suffix(120))
+        if let data = try? JSONEncoder().encode(samples) {
+            UserDefaults.standard.set(data, forKey: key)
+        }
+    }
+
+    static func averages(periodDays: Int) -> (overall: Int, count: Int)? {
+        let cutoff = Date().addingTimeInterval(-Double(periodDays) * 86_400)
+        let slice = load().filter { $0.date >= cutoff }
+        guard !slice.isEmpty else { return nil }
+        let avg = slice.map(\.overall).reduce(0, +) / slice.count
+        return (avg, slice.count)
+    }
+}
+
 // MARK: - Predictive insights
 
 struct PredictiveInsight: Identifiable, Hashable, Sendable {
@@ -125,22 +197,70 @@ struct PredictiveInsight: Identifiable, Hashable, Sendable {
     let title: String
     let body: String
     let severity: String // info | warn | critical
+    var bytesPerDay: Double? = nil
+    var currentBytes: Int64? = nil
+    var category: String? = nil
+    var daysUntilFull: Double? = nil
 }
 
 enum PredictiveEngine {
     static func insights(history: [ScanHistoryEntry], pulse: SystemPulse?, items: [ScanItem]) -> [PredictiveInsight] {
+        HotspotTracker.append(items: items)
         var out: [PredictiveInsight] = []
         if let eta = diskFullETA(history: history, pulse: pulse) {
             out.append(eta)
         }
+        out += categoryForecasts(items: items)
         out += growthInsights(history: history)
         out += hotspots(items: items)
+        out += thresholdWarnings(items: items)
         if out.isEmpty {
             out.append(PredictiveInsight(
                 id: "need-history",
                 title: "Need more scans for forecasts",
-                body: "Run scans over a few days — Stoguard will project when your SSD fills and which categories are growing.",
+                body: "Run scans over a few days — Stoguard will project when your SSD fills and which categories grow (Docker, Ollama, DerivedData, Downloads…).",
                 severity: "info"
+            ))
+        }
+        return out
+    }
+
+    private static func categoryForecasts(items: [ScanItem]) -> [PredictiveInsight] {
+        HotspotTracker.forecasts(items: items).map { f in
+            PredictiveInsight(
+                id: "forecast-\(f.id)",
+                title: f.title,
+                body: f.body,
+                severity: f.severity,
+                bytesPerDay: f.bytesPerDay,
+                currentBytes: f.currentBytes,
+                category: f.kind.title,
+                daysUntilFull: nil
+            )
+        }
+    }
+
+    private static func thresholdWarnings(items: [ScanItem]) -> [PredictiveInsight] {
+        var out: [PredictiveInsight] = []
+        let sizes = HotspotTracker.measure(items: items)
+        if let ollama = sizes[HotspotKind.ollama.rawValue], ollama > 80_000_000_000 {
+            out.append(PredictiveInsight(
+                id: "ollama-100",
+                title: "Ollama models will exceed 100 GB soon",
+                body: "You already have \(ByteText.string(ollama)). Idle weights compound quickly — archive unused models before next month’s pulls.",
+                severity: "warn",
+                currentBytes: ollama,
+                category: HotspotKind.ollama.title
+            ))
+        }
+        if let dd = sizes[HotspotKind.derivedData.rawValue], dd > 40_000_000_000 {
+            out.append(PredictiveInsight(
+                id: "dd-huge",
+                title: "DerivedData is unusually large",
+                body: "\(ByteText.string(dd)) — cold-clean between projects to keep builds responsive.",
+                severity: "warn",
+                currentBytes: dd,
+                category: HotspotKind.derivedData.title
             ))
         }
         return out
@@ -151,13 +271,15 @@ enum PredictiveEngine {
         let recent = Array(history.suffix(8))
         guard let first = recent.first, let last = recent.last else { return nil }
         let days = max(0.5, last.date.timeIntervalSince(first.date) / 86_400)
-        let freeDelta = Double(first.freeBytes - last.freeBytes) // positive = losing free space
+        let freeDelta = Double(first.freeBytes - last.freeBytes)
         guard freeDelta > 50_000_000 else {
             return PredictiveInsight(
                 id: "disk-stable",
                 title: "Disk usage looks stable",
                 body: String(format: "Free space held roughly steady over %.0f days (%.1f GB free now).", days, Double(pulse.diskFreeBytes) / 1e9),
-                severity: "info"
+                severity: "info",
+                bytesPerDay: 0,
+                daysUntilFull: nil
             )
         }
         let bytesPerDay = freeDelta / days
@@ -171,12 +293,14 @@ enum PredictiveEngine {
         let severity = daysTo95 < 14 ? "critical" : (daysTo95 < 45 ? "warn" : "info")
         return PredictiveInsight(
             id: "disk-eta",
-            title: String(format: "SSD may hit 95%% in ~%.0f days", max(1, daysTo95)),
+            title: String(format: "At current usage, disk ~full in %.0f days", max(1, daysTo95)),
             body: String(
-                format: "Based on %.1f GB/day free-space loss over the last %.0f days. At this pace, reclaim safe caches before you hit the performance cliff.",
+                format: "Losing ~%.2f GB/day of free space over the last %.0f days (projecting to 95%% full). Reclaim safe caches and prune Docker/AI growth before the performance cliff.",
                 bytesPerDay / 1e9, days
             ),
-            severity: severity
+            severity: severity,
+            bytesPerDay: bytesPerDay,
+            daysUntilFull: daysTo95
         )
     }
 
@@ -192,11 +316,15 @@ enum PredictiveEngine {
             if best == nil || delta > best!.1 { best = (cat, delta) }
         }
         guard let best, best.1 > 200_000_000 else { return [] }
+        let rate = Double(best.1) / days
         return [PredictiveInsight(
             id: "growth-\(best.0)",
-            title: "\(best.0) grew \(ByteText.string(best.1))",
-            body: String(format: "Largest category growth since last scan (~%.1f days). Review that section first.", days),
-            severity: best.1 > 5_000_000_000 ? "warn" : "info"
+            title: String(format: "%@ grew %.1f GB/day", best.0, rate / 1e9),
+            body: "\(ByteText.string(best.1)) since last scan (~\(String(format: "%.1f", days)) days). Review that section first.",
+            severity: best.1 > 5_000_000_000 ? "warn" : "info",
+            bytesPerDay: rate,
+            currentBytes: last.categoryTotals[best.0],
+            category: best.0
         )]
     }
 
@@ -206,7 +334,9 @@ enum PredictiveEngine {
             id: "hotspot-\(top.id)",
             title: "\(top.name) is your largest hotspot",
             body: "\(ByteText.string(top.sizeBytes)) · \(top.note)",
-            severity: top.safety == .safe ? "info" : "warn"
+            severity: top.safety == .safe ? "info" : "warn",
+            currentBytes: top.sizeBytes,
+            category: top.category
         )]
     }
 }
@@ -351,7 +481,8 @@ enum ProactiveEngine {
         items: [ScanItem],
         history: [ScanHistoryEntry],
         pulse: SystemPulse?,
-        prefs: PreferenceMemory
+        prefs: PreferenceMemory,
+        media: [MediaAsset] = []
     ) -> [ProactiveAlert] {
         var alerts: [ProactiveAlert] = []
         if let pulse, pulse.diskUsedPercent >= 92 {
@@ -397,6 +528,28 @@ enum ProactiveEngine {
                     ))
                 }
             }
+        }
+        if let top = media.first, top.sizeBytes >= 200_000_000 {
+            alerts.append(ProactiveAlert(
+                id: "media-\(top.id.hashValue)",
+                title: "Large \(top.kind.label.lowercased()): \(top.name)",
+                explanation: "\(top.sizeText) in \(top.path). Media often wastes space via inefficient codecs or metadata — not higher resolution.",
+                recommendation: "Open Media Optimizer, review, then approve keep-resolution optimize or a KB/MB/GB/TB target.",
+                severity: "info",
+                relatedSection: .mediaOptimizer
+            ))
+        }
+        // Idle Docker / models from hotspot tracker
+        let sizes = HotspotTracker.measure(items: items)
+        if let docker = sizes[HotspotKind.docker.rawValue], docker > 20_000_000_000 {
+            alerts.append(ProactiveAlert(
+                id: "docker-large",
+                title: "Docker store is \(ByteText.string(docker))",
+                explanation: HotspotKind.docker.typicalNote,
+                recommendation: "Prefer `docker system prune` for unused images; review volumes before removing.",
+                severity: "warn",
+                relatedSection: .containers
+            ))
         }
         return Array(alerts.prefix(12))
     }
@@ -465,6 +618,14 @@ enum LearningCenter {
             whenDelete: "After SDK upgrades or when caches exceed tens of GB.",
             afterDelete: "Next build re-downloads dependencies — longer cold build."
         ),
+        LearningArticle(
+            id: "media-optimize", title: "Media optimization", category: "Media",
+            what: "Recompressing large images, videos, and documents while keeping resolution (pixel / frame size).",
+            whyCreated: "Cameras and exporters often store bulky metadata or inefficient codecs.",
+            whySafe: "Stoguard asks for approval first and moves originals to Trash before writing the optimized file.",
+            whenDelete: "Use optimize when a file is huge but you still need the same visual size; use target size when you need a specific KB/MB/GB/TB cap.",
+            afterDelete: "Optimized file stays at the same path; restore the original from Trash if needed."
+        ),
     ]
 
     static func article(matching query: String) -> LearningArticle? {
@@ -477,55 +638,30 @@ enum LearningCenter {
 
 // MARK: - Cloud intelligence (opt-in anonymous benchmarks)
 
-struct CloudBenchmark: Identifiable, Hashable, Sendable {
-    let id: String
-    let cohort: String
-    let averageBytes: Int64
-    let yourBytes: Int64
-    let recommendation: String
-
-    var yourVsAvgText: String {
-        if yourBytes > averageBytes {
-            return "Your cache is \(ByteText.string(yourBytes - averageBytes)) above the anonymous cohort average."
-        }
-        return "You’re at or below the cohort average."
-    }
-}
-
-enum CloudIntelligence {
-    /// Local synthetic benchmarks until a real opt-in endpoint exists.
-    static func benchmarks(items: [ScanItem], optIn: Bool) -> [CloudBenchmark] {
-        guard optIn else { return [] }
-        let cohorts: [(String, String, Int64)] = [
-            ("flutter", "Flutter", 9_000_000_000),
-            ("docker", "Docker", 15_000_000_000),
-            ("npm", "npm", 2_000_000_000),
-            ("ollama", "Ollama", 12_000_000_000),
-            ("derived", "Xcode DerivedData", 8_000_000_000),
-        ]
-        return cohorts.compactMap { key, label, avg in
-            let yours = items.filter {
-                $0.name.localizedCaseInsensitiveContains(key)
-                    || $0.path.localizedCaseInsensitiveContains(key)
-                    || $0.category.localizedCaseInsensitiveContains(label)
-            }.reduce(Int64(0)) { $0 + $1.sizeBytes }
-            guard yours > 0 else { return nil }
-            let rec = yours > avg * 2 ? "Clean or archive — you’re well above peers." : "Within a normal range for this cohort."
-            return CloudBenchmark(id: key, cohort: label, averageBytes: avg, yourBytes: yours, recommendation: rec)
-        }
-    }
-}
-
 // MARK: - AI model management helpers
 
 enum AIModelOps {
+    static var archiveRoot: URL {
+        SupportPaths.directory.appendingPathComponent("ModelArchives", isDirectory: true)
+    }
+
     static func archiveAdvice(for model: AIModelEntry) -> String {
         """
         Archive / free space options for \(model.provider) · \(model.name):
-        • Move the folder to an external drive, then symlink back if needed.
+        • Archive to \(archiveRoot.path) (moves off the hot path; restore later).
         • Or Trash it (\(ByteText.string(model.sizeBytes))) — \(model.removeHint)
         Idle: \(model.daysIdle.map { "\($0) days" } ?? "unknown").
         """
+    }
+
+    /// Move model folder into Application Support archives (recoverable, not Trash).
+    @discardableResult
+    static func archiveToSupport(_ model: AIModelEntry) throws -> URL {
+        SupportPaths.ensureDirectory()
+        try FileManager.default.createDirectory(at: archiveRoot, withIntermediateDirectories: true)
+        let dest = archiveRoot.appendingPathComponent("\(model.provider)-\(model.name)-\(Int(Date().timeIntervalSince1970))", isDirectory: true)
+        try FileManager.default.moveItem(atPath: model.path, toPath: dest.path)
+        return dest
     }
 
     static func duplicatesSummary(models: [AIModelEntry]) -> String {
@@ -555,7 +691,7 @@ enum RepoIntelligence {
         let total = Shell.size(expanded)
         var insights: [RepoInsight] = []
 
-        let heavyNames = ["node_modules", "Pods", ".gradle", "build", "dist", "DerivedData", ".next", "vendor", "__pycache__", ".venv", "venv"]
+        let heavyNames = ["node_modules", "Pods", ".gradle", "build", "dist", "DerivedData", ".next", "vendor", "__pycache__", ".venv", "venv", "target", ".dart_tool"]
         for name in heavyNames {
             let path = (expanded as NSString).appendingPathComponent(name)
             if fm.fileExists(atPath: path) {
@@ -568,6 +704,9 @@ enum RepoIntelligence {
                 }
             }
         }
+
+        insights += deadDependencyHints(root: expanded, fm: fm)
+        insights += duplicateImages(root: expanded, fm: fm)
 
         // Large media / binaries (shallow)
         if let kids = try? fm.contentsOfDirectory(atPath: expanded) {
@@ -591,5 +730,83 @@ enum RepoIntelligence {
 
         insights.sort { $0.bytes > $1.bytes }
         return (total, Array(insights.prefix(40)))
+    }
+
+    /// Heuristic dead-deps: lockfile present but dependency folder missing / huge unused markers.
+    private static func deadDependencyHints(root: String, fm: FileManager) -> [RepoInsight] {
+        var out: [RepoInsight] = []
+        let packageJSON = (root as NSString).appendingPathComponent("package.json")
+        let nodeModules = (root as NSString).appendingPathComponent("node_modules")
+        if fm.fileExists(atPath: packageJSON), !fm.fileExists(atPath: nodeModules) {
+            out.append(RepoInsight(
+                id: "dead-node-modules", title: "package.json without node_modules",
+                detail: "Dependencies declared but not installed — or cleaned. Run npm/pnpm/yarn install when needed.",
+                bytes: 0, kind: "dead-deps"
+            ))
+        }
+        if fm.fileExists(atPath: packageJSON), fm.fileExists(atPath: nodeModules) {
+            let sz = Shell.size(nodeModules)
+            if sz > 500_000_000 {
+                out.append(RepoInsight(
+                    id: "heavy-node-modules", title: "node_modules is large",
+                    detail: "Often safe to delete and reinstall. Check for unused packages with depcheck / knip.",
+                    bytes: sz, kind: "dead-deps"
+                ))
+            }
+        }
+        let cargo = (root as NSString).appendingPathComponent("Cargo.toml")
+        let target = (root as NSString).appendingPathComponent("target")
+        if fm.fileExists(atPath: cargo), fm.fileExists(atPath: target) {
+            let sz = Shell.size(target)
+            if sz > 200_000_000 {
+                out.append(RepoInsight(
+                    id: "rust-target", title: "Rust target/ build artifacts",
+                    detail: "Safe to `cargo clean` — rebuilds on next compile.",
+                    bytes: sz, kind: "dead-deps"
+                ))
+            }
+        }
+        let pubspec = (root as NSString).appendingPathComponent("pubspec.yaml")
+        let build = (root as NSString).appendingPathComponent("build")
+        if fm.fileExists(atPath: pubspec), fm.fileExists(atPath: build) {
+            let sz = Shell.size(build)
+            if sz > 100_000_000 {
+                out.append(RepoInsight(
+                    id: "flutter-build", title: "Flutter build/ output",
+                    detail: "Regenerated by `flutter build`. Safe to delete when not shipping from this tree.",
+                    bytes: sz, kind: "dead-deps"
+                ))
+            }
+        }
+        return out
+    }
+
+    /// Duplicate image *names* under the repo (shallow walk) — not content-hash.
+    private static func duplicateImages(root: String, fm: FileManager) -> [RepoInsight] {
+        var byName: [String: [(path: String, bytes: Int64)]] = [:]
+        guard let enumerator = fm.enumerator(atPath: root) else { return [] }
+        var count = 0
+        while let rel = enumerator.nextObject() as? String {
+            count += 1
+            if count > 4_000 { break }
+            let ext = (rel as NSString).pathExtension.lowercased()
+            guard ["png", "jpg", "jpeg", "gif", "webp"].contains(ext) else { continue }
+            let base = ((rel as NSString).lastPathComponent as String).lowercased()
+            let path = (root as NSString).appendingPathComponent(rel)
+            let sz = Shell.size(path)
+            guard sz > 50_000 else { continue }
+            byName[base, default: []].append((path, sz))
+        }
+        return byName.compactMap { name, files -> RepoInsight? in
+            guard files.count >= 2 else { return nil }
+            let bytes = files.reduce(Int64(0)) { $0 + $1.bytes }
+            return RepoInsight(
+                id: "dupimg-\(name)",
+                title: "Duplicate image name: \(name)",
+                detail: "\(files.count) copies — review for unused assets (name match, not pixel hash).",
+                bytes: bytes,
+                kind: "dup-image"
+            )
+        }.sorted { $0.bytes > $1.bytes }.prefix(8).map { $0 }
     }
 }

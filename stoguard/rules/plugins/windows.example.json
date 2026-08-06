@@ -10,7 +10,7 @@
       "path": "~\\AppData\\Local\\npm-cache",
       "category": "Package Managers",
       "safety": "safe",
-      "note": "Portable plugin rule for a future Windows agent. npm download cache."
+      "note": "Portable plugin rule for a Go/Windows stoguard engine. npm download cache."
     },
     {
       "id": "win-nuget",

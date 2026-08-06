@@ -10,7 +10,7 @@
       "path": "~/.cache/pip",
       "category": "Package Managers",
       "safety": "safe",
-      "note": "Portable plugin rule for a future Linux agent."
+      "note": "Portable plugin rule for a Go/Linux stoguard engine."
     },
     {
       "id": "linux-docker-root",

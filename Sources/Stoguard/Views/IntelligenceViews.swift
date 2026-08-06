@@ -49,6 +49,27 @@ struct HealthDashboardView: View {
                             }
                         }
                     }
+
+                    sectionTitle("History")
+                    HStack(spacing: 12) {
+                        historyPill("Today", h.overall)
+                        if let w = HealthHistory.averages(periodDays: 7) {
+                            historyPill("7-day avg", w.overall)
+                        }
+                        if let m = HealthHistory.averages(periodDays: 30) {
+                            historyPill("30-day avg", m.overall)
+                        }
+                    }
+                    ForEach(Array(HealthHistory.load().suffix(8).reversed())) { s in
+                        HStack {
+                            Text(s.date, style: .date).font(.caption).foregroundStyle(Theme.secondaryText)
+                            Spacer()
+                            Text("\(s.overall)").font(.caption.monospacedDigit().weight(.semibold))
+                        }
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 6)
+                    }
+                    .elevatedCard(radius: 10)
                 }
 
                 sectionTitle("Predictive insights")
@@ -56,7 +77,45 @@ struct HealthDashboardView: View {
                     Text("Scan a few times to unlock forecasts.").foregroundStyle(Theme.secondaryText)
                 } else {
                     ForEach(model.predictiveInsights) { p in
-                        insightCard(title: p.title, body: p.body, severity: p.severity)
+                        VStack(alignment: .leading, spacing: 6) {
+                            Text(p.title).font(.system(size: 13, weight: .semibold))
+                            Text(p.body).font(.caption).foregroundStyle(Theme.secondaryText)
+                            HStack {
+                                Text(p.severity.uppercased()).font(.system(size: 9, weight: .bold)).foregroundStyle(Theme.secondaryText)
+                                if let rate = p.bytesPerDay, abs(rate) > 1_000_000 {
+                                    Text(String(format: "%+.2f GB/day", rate / 1e9))
+                                        .font(.caption.monospacedDigit())
+                                }
+                                if let d = p.daysUntilFull {
+                                    Text(String(format: "~%.0f days to full", d))
+                                        .font(.caption.weight(.semibold))
+                                        .foregroundStyle(Theme.dangerRed)
+                                }
+                            }
+                        }
+                        .padding(12).elevatedCard(radius: 10)
+                    }
+                }
+
+                if !model.categoryForecasts.isEmpty {
+                    sectionTitle("Category growth (30-day window)")
+                    ForEach(model.categoryForecasts) { f in
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text(f.title).font(.system(size: 13, weight: .semibold))
+                            Text(f.body).font(.caption).foregroundStyle(Theme.secondaryText)
+                        }
+                        .padding(12).elevatedCard(radius: 10)
+                    }
+                }
+
+                if !model.continuousMonitor.watchEvents.isEmpty {
+                    sectionTitle("Background watches")
+                    ForEach(model.continuousMonitor.watchEvents.prefix(8)) { e in
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text(e.title).font(.system(size: 13, weight: .semibold))
+                            Text(e.body).font(.caption).foregroundStyle(Theme.secondaryText)
+                        }
+                        .padding(12).elevatedCard(radius: 10)
                     }
                 }
 
@@ -86,12 +145,30 @@ struct HealthDashboardView: View {
                 }
 
                 if model.automation.cloudOptIn {
-                    sectionTitle("Anonymous cohort benchmarks")
+                    sectionTitle("Cloud cohort knowledge")
+                    Text("Baselines + fleet-peer averages + optional remote feed. Opt-in only — no hostname or paths leave the device unless you set a contribute URL.")
+                        .font(.caption).foregroundStyle(Theme.secondaryText)
+                    HStack {
+                        Button("Refresh remote feed") { model.refreshCohortFeed() }
+                            .buttonStyle(SecondaryOutlineButtonStyle())
+                    }
+                    if let s = model.cohortStatus {
+                        Text(s).font(.caption2).foregroundStyle(Theme.tertiaryText)
+                    }
                     ForEach(model.cloudBenchmarks) { b in
                         VStack(alignment: .leading, spacing: 4) {
-                            Text(b.cohort).font(.system(size: 13, weight: .semibold))
+                            HStack {
+                                Text(b.cohort).font(.system(size: 13, weight: .semibold))
+                                Text(b.source.uppercased())
+                                    .font(.system(size: 9, weight: .bold))
+                                    .foregroundStyle(Theme.secondaryText)
+                                Spacer()
+                            }
                             Text("You \(ByteText.string(b.yourBytes)) · cohort avg \(ByteText.string(b.averageBytes))")
                                 .font(.caption).foregroundStyle(Theme.secondaryText)
+                            if let n = b.sampleSize {
+                                Text("Peer samples: \(n)").font(.caption2).foregroundStyle(Theme.tertiaryText)
+                            }
                             Text(b.yourVsAvgText).font(.caption)
                             Text(b.recommendation).font(.caption).foregroundStyle(Theme.navy)
                         }
@@ -107,6 +184,16 @@ struct HealthDashboardView: View {
 
     private func sectionTitle(_ t: String) -> some View {
         Text(t).font(.system(size: 15, weight: .semibold)).padding(.top, 8)
+    }
+
+    private func historyPill(_ label: String, _ score: Int) -> some View {
+        VStack(spacing: 2) {
+            Text("\(score)").font(.title3.monospacedDigit().weight(.bold)).foregroundStyle(Theme.navy)
+            Text(label).font(.caption2).foregroundStyle(Theme.secondaryText)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(10)
+        .elevatedCard(radius: 10)
     }
 
     private func insightCard(title: String, body: String, severity: String) -> some View {
@@ -194,10 +281,16 @@ struct AutomationView: View {
                     set: { model.setContinuousMonitoring($0) }
                 ))
 
-                Toggle("Opt in to anonymous cohort benchmarks (on-device comparison only for now)", isOn: Binding(
+                Toggle("Opt in to cloud cohort knowledge (anonymous category averages — baselines, fleet peers, optional remote)", isOn: Binding(
                     get: { model.automation.cloudOptIn },
                     set: { model.setCloudOptIn($0) }
                 ))
+                if model.automation.cloudOptIn {
+                    Text(model.cohortStatus ?? "Peers accumulate as you scan / ingest fleet machines. Optional: set stoguard.cohortFeedURL / cohortContributeURL.")
+                        .font(.caption).foregroundStyle(Theme.secondaryText)
+                    Button("Refresh cohort feed") { model.refreshCohortFeed() }
+                        .buttonStyle(SecondaryOutlineButtonStyle())
+                }
 
                 ForEach(model.automation.rules) { rule in
                     HStack {

@@ -65,7 +65,7 @@ Legend: ✅ Full · ⚠️ Partial · ❌ Not present
 | macOS Finder trash sounds | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ |
 | Confirm before every delete | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
 | **Automation & background** |
-| Scheduled auto-clean | ✅ | ✅ | ❌ | ❌ | ❌ | ❌ | ⚠️ rules + prompts |
+| Scheduled auto-clean | ✅ | ✅ | ❌ | ❌ | ❌ | ❌ | ⚠️ stages + confirm |
 | Menu bar companion | ❌ | ✅ | ✅ | ❌ | ❌ | ✅ | ❌ |
 | Storage forecast (disk fill prediction) | ❌ | ❌ | ✅ | ❌ | ❌ | ❌ | ✅ Health |
 | **Permissions & trust** |
@@ -118,16 +118,16 @@ Legend: ✅ Full · ⚠️ Partial · ❌ Not present
 - **Duplicate finder** (MD5), **disk treemap**, **memory optimizer** (Mach APIs).
 - ~3.4 MB binary, menu bar popover.
 
-### Stoguard — the honest dev tool
-- **95 auditable rules** in plain JSON — extend with a one-line PR.
+### Stoguard — the honest AI workstation tool
+- **95 auditable rules** in plain JSON — extend via Plugin SDK packs (`plugins/docker|flutter|unity|rust`).
+- **Ask Stoguard** — AI mentor grounded in scan (teach DerivedData, safe-delete, cleanup sequence; optional Ollama).
+- **Health score + predictions + automation** — SSD fill ETA, staged Sunday/npm rules, Keep/Clean memory.
+- **Env Doctor** — Brew, Node, Python, Java, Android, Flutter, Rust, Git.
 - **Copy-command** for Docker, Minikube, Colima — never risky folder deletes on VM disks.
 - **Docker sparse sizing** via `totalFileAllocatedSize` (same idea as Cacheout).
-- **DerivedData per-project breakdown** (ClearDisk-style).
-- **`node_modules` + 18 artifact types** via `ProjectScanner` (Cacheout/ClearDisk pattern).
-- **Unknown heavy folders** over 1 GB — Purge hides these; Stoguard surfaces them for review.
-- **Smart Scan dashboard** (PureMac-inspired) + **Purge-style** sidebar card, filter pills, selection bar.
+- **Cross-platform Go engine** (macOS / Windows / Linux) + native macOS app.
 - **Trash browser** with Put Back, permanent delete, Empty Trash, Finder sounds.
-- **Zero network**, trash-only deletion, FDA gate before scan.
+- **Zero telemetry by default**, trash-only deletion, FDA gate before scan.
 
 ---
 
@@ -225,22 +225,42 @@ Stoguard is more permissive about unknown folders than Purge — intentional for
 
 ---
 
-## Stoguard gaps (honest roadmap)
+## Stoguard intelligence (shipped)
+
+These are **implemented** in the native macOS app and (where noted) the Go web UI — not a future wishlist.
+
+| Capability | Where | Notes |
+|------------|-------|-------|
+| **Ask Stoguard (AI mentor)** | Sidebar → Ask · web Ask | Grounded Q&A: why SSD full, Docker, DerivedData, safe-to-delete, cleanup sequence; optional local Ollama |
+| **Local AI Model Manager** | AI Cleanup / AI Models | Ollama, HF, LM Studio, Diffusers/SD, ComfyUI, Whisper, llama.cpp — reveal, archive, trash |
+| **Plugin SDK** | Rules & Plugins · `docs/PLUGIN_SDK.md` · `plugins/` | Drop-in JSON rule packs (docker/flutter/unity/rust examples) |
+| **Continuous monitoring** | Pulse / Automation toggle | Background timer → detect disk/memory pressure → notify + Health alerts (app must be open) |
+| **Machine Health Score** | Health | 0–100 · Storage / Performance / Security / AI Workspace |
+| **Performance analytics** | Pulse · Build Trends · history | Live CPU/RAM/disk + pulse history; DerivedData/Gradle size trends (not wall-clock Xcode builds) |
+| **Predictive analytics** | Health | SSD→95% ETA, category growth, hotspots from scan history |
+| **Automation rules** | Automation | Daily scan / Sunday safe tidy / npm>5GB — stages selection + alerts; never silent delete |
+| **Env Doctor** | Env | Brew, Node, Python, Java, Android, Flutter, Rust, Git, Xcode CLT |
+| **Repository intelligence** | Repo | Heavy folders, large binaries, dead lockfile deps, duplicate image names |
+| **Cohort benchmarks** | Automation opt-in | On-device illustrative averages (not a live cloud cohort yet) |
+| **Media Optimizer** | Optimize → Media | Detect large images/videos/docs; approve keep-resolution optimize or KB/MB/GB/TB target |
+| **Cross-platform** | `stoguard/` Go + web `:8787` | macOS · Windows · Linux scan/trash/doctor/ask/health; richest UX is native macOS |
+
+## Remaining gaps (honest)
 
 | Gap | Best repo to borrow from | Priority |
 |-----|---------------------------|----------|
-| Scheduled auto-clean | PureMac, Purge | Medium |
-| Menu bar companion | Purge, ClearDisk, Mintify | Medium |
-| Storage forecast | ClearDisk | Low |
+| Menu bar companion / launchd daemon | Purge, ClearDisk, Mintify | Medium |
+| Live anonymous cohort endpoint | — (privacy design) | Medium |
 | Full app uninstaller | PureMac | Medium |
 | Orphan / leftover finder | PureMac, SweepYourMac | Low |
 | Large Files tab (Documents/Downloads) | Purge, ClearDisk, Mintify | Low (removed for perf) |
-| Duplicate finder | Mintify | Low |
+| Content-hash duplicate files | Mintify | Low |
 | Actor-based scanners | SweepYourMac | Low (architecture) |
 | MCP agent integration | Cacheout | Low |
 | Risk color levels (🟢🟡🔴) | ClearDisk, SweepYourMac | Medium |
 | In-use file detection (`lsof`) | SweepYourMac | Medium |
 | Notarized release | PureMac, Purge | High for distribution |
+| Wall-clock build-time instrumentation | — | Low |
 
 ---
 

@@ -1,24 +1,30 @@
 # Stoguard Plugin SDK
 
-Drop-in JSON plugins extend Stoguard’s scan rules without rebuilding the app.
+Drop-in JSON plugins extend Stoguard’s scan **without rebuilding the app**. Community packs live beside core `rules.json`.
 
 ## Where plugins live
 
 | Surface | Directory |
 |---------|-----------|
 | Native macOS app | `~/Library/Application Support/Stoguard/Plugins/` |
+| Repo examples | `plugins/{docker,flutter,unity,rust}/rules.json` |
 | Go / web engine | `<dataDir>/Plugins/` (and bundled `stoguard/rules/plugins/`) |
 
-Open **Rules & Plugins** in the app → **Open plugins folder**.
+Layout: flat (`my.json`) or packed (`docker/rules.json`). **Rules & Plugins → Open plugins folder**.
 
-## Schema
+## Plugin model
+
+Each plugin declares detection + intelligence — not just a path:
 
 ```json
 {
   "id": "my-team-caches",
   "name": "My team caches",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "platforms": ["macos", "linux", "windows", "any"],
+  "description": "Internal Bazel + sccache paths for our eng laptops.",
+  "documentationURL": "https://example.com/docs/caches",
+  "author": "Platform team",
   "rules": [
     {
       "id": "team-bazel-cache",
@@ -26,57 +32,72 @@ Open **Rules & Plugins** in the app → **Open plugins folder**.
       "path": "~/.cache/bazel",
       "category": "Developer",
       "safety": "safe",
-      "note": "Rebuildable Bazel remote/local cache. Safe to Trash when disk is tight.",
+      "note": "Rebuildable Bazel remote/local cache.",
+      "explanation": "Bazel stores action outputs and downloaded artifacts here so incremental builds stay fast.",
+      "riskLevel": "low",
+      "docsURL": "https://bazel.build/remote/caching",
+      "safeActions": ["Move to Trash", "bazel clean --expunge (when safe)"],
+      "whatRebuilds": "Next Bazel build refills needed artifacts.",
+      "canUndo": "Put Back from Trash before Empty Trash.",
+      "isCommon": "Common on monorepo developer machines.",
       "command": ""
     }
   ]
 }
 ```
 
-### Fields
+### Plugin fields
 
 | Field | Required | Notes |
 |-------|----------|-------|
-| `id` | yes | Stable plugin id (filename-independent) |
+| `id` | yes | Stable plugin id |
 | `name` | yes | Shown in Rules & Plugins |
-| `version` | no | Semver string |
-| `platforms` | no | `macos` / `linux` / `windows` / `any` (default any) |
-| `rules[]` | yes | Same shape as `rules.json` entries |
+| `version` | no | Semver |
+| `platforms` | no | `macos` / `linux` / `windows` / `any` |
+| `description` | no | Pack summary |
+| `documentationURL` | no | Link shown in UI |
+| `author` | no | Attribution |
+| `rules[]` | yes | Detection entries |
 
-### Rule fields
+### Rule fields (detection + explainability)
 
 | Field | Required | Notes |
 |-------|----------|-------|
-| `id` | yes | Unique across bundled + plugin rules |
+| `id` | yes | Unique across bundled + plugins |
 | `name` | yes | Display name |
-| `path` | yes | `~` expanded; measured if it exists |
-| `category` | yes | Maps to sidebar sections (`Developer`, `Package Managers`, `Containers & K8s`, `AI Tools`, …) |
+| `path` | yes | `~` expanded; measured if present (**detection**) |
+| `category` | yes | Sidebar section mapping |
 | `safety` | yes | `safe` · `check` · `command` · `never` |
-| `note` | yes | Plain-English explanation (shown in UI + Ask) |
-| `command` | no | When `safety` is `command`, CLI to copy (never auto-run) |
+| `note` | yes | Short explanation |
+| `explanation` | no | Longer “what is this?” |
+| `riskLevel` | no | `low` · `medium` · `high` |
+| `docsURL` | no | Learn-more link |
+| `safeActions` | no | Array of suggested actions (never auto-run) |
+| `whatRebuilds` | no | What comes back after cleanup |
+| `canUndo` | no | Undo guidance |
+| `isCommon` | no | How common on developer machines |
+| `command` | no | When `safety` is `command`, CLI to copy |
 
 ## Safety contract
 
-- Plugins **never** delete anything. They only add measurable paths.
-- Prefer `safe` for rebuildable caches; `check` for project-ish data; `command` for Docker/Minikube-style tools; `never` for profiles/credentials.
-- Keep notes teachable — Learning Center and Ask surface them.
+- Plugins **never** delete anything. They only add measurable paths + teaching metadata.
+- Prefer `safe` for rebuildable caches; `check` for project-ish data; `command` for Docker-style tools; `never` for credentials.
+- Keep notes teachable — Doctor, Ask, and Learning Center surface them.
 
-## Examples
+## Community contribution
 
-See:
+1. Fork / clone Stoguard  
+2. Add `plugins/<your-tech>/rules.json` using the schema above  
+3. Drop a copy into Application Support **Plugins/** and hit **Refresh**  
+4. Open a PR with the pack + a one-line description  
 
-- `plugins/example-bazel.json`
-- `plugins/example-ai-extra.json`
-- `stoguard/rules/plugins/linux.example.json`
-- `stoguard/rules/plugins/windows.example.json`
+Core stays stable; the ecosystem grows via packs.
 
 ## Reload
 
-After adding or editing a plugin JSON:
+1. Native: **Rules & Plugins → Refresh** (or rescan)  
+2. Go web: restart `stoguard` or re-run scan  
 
-1. Native: **Rules & Plugins → Refresh** (or rescan)
-2. Go web: restart `stoguard` or re-run scan (plugins merge at engine load)
+## Versioning
 
-## Versioning tip
-
-Bump `version` when you change paths or safety. Teams can ship plugin packs via MDM by dropping JSON into the Plugins folder.
+Bump `version` when paths, safety, or explainability change. Teams can MDM-drop JSON into the Plugins folder.
