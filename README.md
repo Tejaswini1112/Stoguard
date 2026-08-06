@@ -25,7 +25,7 @@
 
 <p align="center">
   <a href="docs/INSTALL.md"><strong>Install</strong></a> ·
-  <a href="website/index.html"><strong>Website</strong></a> ·
+  <a href="https://stoguard.vercel.app"><strong>Website</strong></a> ·
   <a href="docs/ENTERPRISE.md">Enterprise</a> ·
   <a href="docs/ROADMAP.md">Roadmap</a> ·
   <a href="docs/COMPARISON.md">Comparison</a> ·
@@ -91,7 +91,7 @@ Binaries ship on **[GitHub Releases](https://github.com/Tejaswini1112/Stoguard/r
 | **macOS CLI** Apple Silicon | [`stoguard-darwin-arm64`](https://github.com/Tejaswini1112/Stoguard/releases/latest/download/stoguard-darwin-arm64) |
 | **macOS CLI** Intel | [`stoguard-darwin-amd64`](https://github.com/Tejaswini1112/Stoguard/releases/latest/download/stoguard-darwin-amd64) |
 
-Also via the marketing site (Vercel) or locally: `python3 -m http.server 8765` in `website/`.
+Also via the marketing site: **[stoguard.vercel.app](https://stoguard.vercel.app)** (download buttons → GitHub Releases).
 
 ## Quick start
 
