@@ -21,6 +21,7 @@ build darwin amd64 "stoguard-darwin-amd64"
 build linux amd64 "stoguard-linux-amd64"
 build linux arm64 "stoguard-linux-arm64"
 build windows amd64 "stoguard-windows-amd64"
+build windows arm64 "stoguard-windows-arm64"
 
 # Also build native for this machine
 go build -ldflags "-s -w" -o "$OUT/stoguard" .
@@ -33,6 +34,7 @@ cp -f "$OUT/stoguard-darwin-amd64" "$WEB_DL/stoguard-darwin-amd64" 2>/dev/null |
 cp -f "$OUT/stoguard-linux-amd64" "$WEB_DL/stoguard-linux-amd64" 2>/dev/null || true
 cp -f "$OUT/stoguard-linux-arm64" "$WEB_DL/stoguard-linux-arm64" 2>/dev/null || true
 cp -f "$OUT/stoguard-windows-amd64.exe" "$WEB_DL/stoguard-windows-amd64.exe" 2>/dev/null || true
+cp -f "$OUT/stoguard-windows-arm64.exe" "$WEB_DL/stoguard-windows-arm64.exe" 2>/dev/null || true
 
 echo "==> done ($VERSION)"
 ls -lh "$OUT"

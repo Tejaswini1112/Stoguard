@@ -15,7 +15,7 @@ Cleaning is one step in that pipeline.
 | **1.0** | Workstation Doctor · Explain every term · Health score + timeline · Safe cleanup |
 | **2.0** | Ask Stoguard · Local AI workspace manager · Env Doctor · Build performance |
 | **3.0** | Repository Doctor · Plugin marketplace packs · Automation · Predictive storage |
-| **4.0** | Windows + Linux · Enterprise fleet · Team insights · Shared plugins |
+| **4.0** | Enterprise polish · Team insights · Shared plugins · Windows/Linux depth (core already ships) |
 
 ## Phase status
 

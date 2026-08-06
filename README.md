@@ -81,6 +81,7 @@ Stoguard finds what’s eating a developer workstation — Docker, package cache
 |----------|----------|
 | **macOS** (universal app) | [`Stoguard-0.4.2.dmg`](website/downloads/Stoguard-0.4.2.dmg) |
 | **Windows** (x64) | [`stoguard-windows-amd64.exe`](website/downloads/stoguard-windows-amd64.exe) |
+| **Windows** (ARM64) | [`stoguard-windows-arm64.exe`](website/downloads/stoguard-windows-arm64.exe) |
 | **Linux** (x64) | [`stoguard-linux-amd64`](website/downloads/stoguard-linux-amd64) |
 | **Linux** (ARM64) | [`stoguard-linux-arm64`](website/downloads/stoguard-linux-arm64) |
 | **macOS CLI** Apple Silicon | [`stoguard-darwin-arm64`](website/downloads/stoguard-darwin-arm64) |
@@ -89,6 +90,14 @@ Stoguard finds what’s eating a developer workstation — Docker, package cache
 Also via the [marketing site](website/index.html#downloads) (`python3 -m http.server 8765` in `website/`).
 
 ## Quick start
+
+### Windows
+1. Download [`stoguard-windows-amd64.exe`](website/downloads/stoguard-windows-amd64.exe) (or ARM64)
+2. If SmartScreen warns → **More info → Run anyway**
+3. Double-click — UI opens at `http://127.0.0.1:8787`
+4. Scan → review → clean to Recycle Bin
+
+Full steps: [docs/INSTALL.md](docs/INSTALL.md#windows-x64--arm64)
 
 ### macOS native app
 ```bash
@@ -101,6 +110,7 @@ Also via the [marketing site](website/index.html#downloads) (`python3 -m http.se
 ```bash
 cd stoguard
 go run .                 # http://127.0.0.1:8787
+# Windows PowerShell: .\scripts\run.ps1
 # or use a prebuilt binary from website/downloads/
 ./scripts/build.sh       # build macOS / Windows / Linux binaries
 ```

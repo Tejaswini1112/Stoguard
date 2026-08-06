@@ -13,7 +13,7 @@
       "path": "~/.docker/buildx",
       "category": "Containers & K8s",
       "safety": "command",
-      "note": "Buildx builder cache. Prefer `docker buildx prune` over deleting blindly.",
+      "note": "Buildx builder cache (macOS/Linux/Windows under ~/.docker). Prefer `docker buildx prune`.",
       "explanation": "Buildx keeps layer and build cache for faster multi-platform builds.",
       "riskLevel": "low",
       "docsURL": "https://docs.docker.com/reference/cli/docker/buildx/prune/",
@@ -22,6 +22,22 @@
       "canUndo": "Pruned cache is not Put Back — rebuild instead.",
       "isCommon": "Common for teams using BuildKit / multi-arch images.",
       "command": "docker buildx prune"
+    },
+    {
+      "id": "plugin-docker-desktop-windows",
+      "name": "Docker Desktop WSL data",
+      "path": "~/AppData/Local/Docker/wsl",
+      "category": "Containers & K8s",
+      "safety": "command",
+      "note": "Docker Desktop WSL2 disks on Windows. Prefer Docker Desktop cleanup / `docker system prune`.",
+      "explanation": "Docker Desktop stores Linux VM disks under AppData\\Local\\Docker\\wsl.",
+      "riskLevel": "medium",
+      "docsURL": "https://docs.docker.com/desktop/troubleshoot/topics/#clean-/-purge-data",
+      "safeActions": ["Copy: docker system prune -a --volumes", "Quit Docker Desktop before manual cleanup"],
+      "whatRebuilds": "Images/containers re-pull after prune.",
+      "canUndo": "Pruned layers are not recoverable from Recycle Bin reliably.",
+      "isCommon": "Very common on Windows Docker Desktop installs.",
+      "command": "docker system prune -a --volumes"
     }
   ]
 }

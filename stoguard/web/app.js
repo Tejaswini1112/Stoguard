@@ -34,7 +34,7 @@ const titles = {
   duplicates: ["Duplicates", "Overlapping caches and installs"],
   aicleanup: ["AI Cleanup", "Models, skills, MCP, and AI caches — clean safe items immediately"],
   packages: ["Package Finder", "Each install with a definition and how much disk it uses"],
-  media: ["Media Optimizer", "Large images, videos, documents — detect now; optimize in the macOS app"],
+  media: ["Media Optimizer", "Large images, videos, documents — detect here; full optimize in the macOS app"],
   history: ["Storage Timeline", "Reclaimable safe space over time"],
   items: ["All Findings", "Everything the scanner measured"],
   fleet: ["Fleet", "Team machine rollup"],
@@ -42,6 +42,29 @@ const titles = {
 };
 
 const $ = (sel) => document.querySelector(sel);
+
+function currentOS() {
+  return (state.status && (state.status.platform || state.status.os)) || "";
+}
+
+function isWindows() {
+  const o = String(currentOS()).toLowerCase();
+  return o === "windows" || o === "win32";
+}
+
+function packageFinderHint() {
+  if (isWindows()) {
+    return "Looks for npm globals, Scoop, winget packages, pipx, Cargo bins, and Local\\Programs.";
+  }
+  return "Looks for Homebrew Cellar, npm globals, pipx, Cargo bins, and ~/.local/bin.";
+}
+
+function packageFinderLoadingCopy() {
+  if (isWindows()) {
+    return "Scanning npm, Scoop, winget, pipx, and CLI installs…";
+  }
+  return "Scanning Homebrew, npm, pipx, and CLI installs…";
+}
 
 function fmtBytes(n) {
   if (n == null || Number.isNaN(n)) return "—";
@@ -555,7 +578,7 @@ function renderPackages() {
     return;
   }
   if (state.packagesLoading && !(state.packages || []).length) {
-    el.innerHTML = `<div class="empty">Scanning Homebrew, npm, pipx, and CLI installs…<br/><span class="hint">This lists what you installed — not just caches.</span></div>`;
+    el.innerHTML = `<div class="empty">${packageFinderLoadingCopy()}<br/><span class="hint">This lists what you installed — not just caches.</span></div>`;
     return;
   }
   if (state.packagesError && !(state.packages || []).length) {
@@ -571,7 +594,7 @@ function renderPackages() {
     el.innerHTML = `<div class="empty">
       No installed packages measured yet.<br/><br/>
       <button class="btn primary" id="btn-reload-packages">Scan installs now</button>
-      <p class="hint" style="margin-top:12px">Looks for Homebrew Cellar, npm globals, pipx, Cargo bins, and ~/.local/bin.</p>
+      <p class="hint" style="margin-top:12px">${packageFinderHint()}</p>
     </div>`;
     const btn = $("#btn-reload-packages");
     if (btn) btn.onclick = () => loadPackages({ force: true });

@@ -42,6 +42,9 @@ func Scan() []Finding {
 	case "windows":
 		out = append(out, npmGlobals(filepath.Join(home, "AppData/Roaming/npm/node_modules"))...)
 		out = append(out, dirPackages(filepath.Join(home, "AppData/Local/Programs"), "Windows Programs", 5_000_000)...)
+		out = append(out, pipx(filepath.Join(home, "AppData/Local/pipx/venvs"))...)
+		out = append(out, dirPackages(filepath.Join(home, "scoop/apps"), "Scoop", 5_000_000)...)
+		out = append(out, dirPackages(filepath.Join(home, "AppData/Local/Microsoft/WinGet/Packages"), "winget", 5_000_000)...)
 	}
 	out = append(out, npmGlobals(filepath.Join(home, ".local/lib/node_modules"))...)
 	out = append(out, pipx(filepath.Join(home, ".local/share/pipx/venvs"))...)

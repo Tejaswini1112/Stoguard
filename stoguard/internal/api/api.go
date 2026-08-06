@@ -278,7 +278,8 @@ func (s *Server) handleReveal(w http.ResponseWriter, r *http.Request) {
 	case "darwin":
 		cmd = exec.Command("open", "-R", path)
 	case "windows":
-		cmd = exec.Command("explorer", "/select,", path)
+		// explorer requires /select,PATH as one argument (no space after comma).
+		cmd = exec.Command("explorer", "/select,"+filepath.Clean(path))
 	default:
 		cmd = exec.Command("xdg-open", filepath.Dir(path))
 	}

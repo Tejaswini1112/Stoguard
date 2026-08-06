@@ -6,11 +6,27 @@
   "rules": [
     {
       "id": "plugin-unity-cache",
-      "name": "Unity cache",
+      "name": "Unity cache (macOS)",
       "path": "~/Library/Unity/cache",
       "category": "Developer",
       "safety": "safe",
       "note": "Unity Hub/editor download cache. Safe to clear; editors re-download as needed."
+    },
+    {
+      "id": "plugin-unity-cache-windows",
+      "name": "Unity cache (Windows)",
+      "path": "~/AppData/Local/Unity/cache",
+      "category": "Developer",
+      "safety": "safe",
+      "note": "Unity Hub/editor download cache on Windows."
+    },
+    {
+      "id": "plugin-unity-cache-linux",
+      "name": "Unity cache (Linux)",
+      "path": "~/.config/unity3d/cache",
+      "category": "Developer",
+      "safety": "safe",
+      "note": "Unity cache on Linux when present."
     }
   ]
 }

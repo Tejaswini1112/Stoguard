@@ -2,6 +2,15 @@
 
 All notable changes to Stoguard are documented here.
 
+## [0.4.2] — 2026-08-06
+
+### Windows reliability
+- Expanded **windows.json** scan coverage (Cursor, WSL packages, Docker Desktop, Scoop/winget, `%TEMP%`, VS Code CachedData, Unity, browsers, AI caches)
+- Recycle staging uses **copy+delete** across volumes; Explorer **Reveal** quoting fixed; blocked paths are **case-insensitive**
+- Package Finder finds npm / Scoop / winget / pipx on Windows; UI copy is OS-aware
+- Ships **windows-arm64.exe**; Windows install docs in README / INSTALL / SUPPORT
+- PowerShell helper: `stoguard/scripts/run.ps1`
+
 ## [0.4.0] — 2026-08-05
 
 ### Best-on-every-platform

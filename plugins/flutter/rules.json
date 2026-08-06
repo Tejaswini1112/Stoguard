@@ -11,6 +11,14 @@
       "category": "Package Managers",
       "safety": "check",
       "note": "Dart/Flutter package cache. Re-downloaded by `flutter pub get`."
+    },
+    {
+      "id": "plugin-flutter-pub-cache-windows",
+      "name": "Pub cache (Windows)",
+      "path": "~/AppData/Local/Pub/Cache",
+      "category": "Package Managers",
+      "safety": "check",
+      "note": "Flutter/Dart pub cache on Windows."
     }
   ]
 }

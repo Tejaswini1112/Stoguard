@@ -1,24 +1,25 @@
 {
   "id": "windows-dev-caches",
   "name": "Windows developer caches",
-  "version": "1.0",
+  "version": "1.1",
   "platforms": ["windows"],
+  "description": "Example plugin for Windows AppData caches beyond the bundled windows.json rules.",
   "rules": [
     {
-      "id": "win-npm-cache",
-      "name": "npm cache (Windows)",
-      "path": "~\\AppData\\Local\\npm-cache",
-      "category": "Package Managers",
+      "id": "example-win-cursor-logs",
+      "name": "Cursor logs (example)",
+      "path": "~/AppData/Roaming/Cursor/logs",
+      "category": "Developer",
       "safety": "safe",
-      "note": "Portable plugin rule for a Go/Windows stoguard engine. npm download cache."
+      "note": "Example plugin rule — Cursor log files. Safe to clear."
     },
     {
-      "id": "win-nuget",
-      "name": "NuGet packages",
-      "path": "~\\.nuget\\packages",
-      "category": "Package Managers",
+      "id": "example-win-temp-env",
+      "name": "TEMP via env (example)",
+      "path": "%TEMP%",
+      "category": "System Caches",
       "safety": "check",
-      "note": "NuGet global packages folder."
+      "note": "Demonstrates %TEMP% expansion on Windows."
     }
   ]
 }

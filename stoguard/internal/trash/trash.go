@@ -2,6 +2,7 @@ package trash
 
 import (
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"time"
@@ -23,7 +24,60 @@ func moveUnique(path, dir string) error {
 		return err
 	}
 	dest := uniqueName(dir, filepath.Base(path))
-	return os.Rename(path, dest)
+	if err := os.Rename(path, dest); err == nil {
+		return nil
+	} else {
+		// Cross-volume rename fails on Windows; copy then remove.
+		if copyErr := copyRecursive(path, dest); copyErr != nil {
+			_ = os.RemoveAll(dest)
+			return fmt.Errorf("rename failed (%v); copy failed: %w", err, copyErr)
+		}
+		if remErr := os.RemoveAll(path); remErr != nil {
+			return fmt.Errorf("staged copy ok but remove source failed: %w", remErr)
+		}
+		return nil
+	}
+}
+
+func copyRecursive(src, dst string) error {
+	info, err := os.Lstat(src)
+	if err != nil {
+		return err
+	}
+	if info.Mode()&os.ModeSymlink != 0 {
+		target, err := os.Readlink(src)
+		if err != nil {
+			return err
+		}
+		return os.Symlink(target, dst)
+	}
+	if info.IsDir() {
+		if err := os.MkdirAll(dst, info.Mode().Perm()); err != nil {
+			return err
+		}
+		entries, err := os.ReadDir(src)
+		if err != nil {
+			return err
+		}
+		for _, e := range entries {
+			if err := copyRecursive(filepath.Join(src, e.Name()), filepath.Join(dst, e.Name())); err != nil {
+				return err
+			}
+		}
+		return nil
+	}
+	in, err := os.Open(src)
+	if err != nil {
+		return err
+	}
+	defer in.Close()
+	out, err := os.OpenFile(dst, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, info.Mode().Perm())
+	if err != nil {
+		return err
+	}
+	defer out.Close()
+	_, err = io.Copy(out, in)
+	return err
 }
 
 func uniqueName(dir, base string) string {

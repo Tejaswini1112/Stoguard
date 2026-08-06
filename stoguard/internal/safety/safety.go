@@ -36,6 +36,10 @@ func blockedPrefixes() []string {
 func under(parent, candidate string) bool {
 	parent = filepath.Clean(parent)
 	candidate = filepath.Clean(candidate)
+	if runtime.GOOS == "windows" {
+		parent = strings.ToLower(parent)
+		candidate = strings.ToLower(candidate)
+	}
 	if parent == candidate {
 		return true
 	}

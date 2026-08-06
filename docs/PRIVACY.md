@@ -43,4 +43,4 @@ Stoguard does not request Contacts, Photos, Microphone, or Location.
 
 ## Cross-platform note
 
-The Go app (`stoguard/`) binds only to `127.0.0.1` for its local UI. On Windows, cleanup stages into a Stoguard Recycle folder until OS Recycle Bin integration ships — not the same as macOS Trash Put Back.
+The Go app (`stoguard/`) binds only to `127.0.0.1` for its local UI. On Windows, cleanup prefers the **Recycle Bin** via PowerShell (`SendToRecycleBin`). If that fails, items stage under `%APPDATA%\Stoguard\Recycle` (still recoverable — not a silent delete).

@@ -55,19 +55,18 @@ func ExpandPath(p string) string {
 	if p == "" {
 		return p
 	}
+	// Expand %VAR% / $VAR before tilde so rules can use %TEMP%, %LOCALAPPDATA%, etc.
+	if runtime.GOOS == "windows" {
+		p = os.ExpandEnv(p)
+	} else if strings.Contains(p, "$") {
+		p = os.ExpandEnv(p)
+	}
 	home := Home()
 	if p == "~" {
 		return home
 	}
-	if strings.HasPrefix(p, "~/") || strings.HasPrefix(p, "~\\") {
-		return filepath.Join(home, p[2:])
-	}
-	// Windows-style ~\AppData\...
-	if strings.HasPrefix(p, `~\`) {
-		return filepath.Join(home, p[2:])
-	}
-	if runtime.GOOS == "windows" {
-		p = os.ExpandEnv(p)
+	if strings.HasPrefix(p, "~/") || strings.HasPrefix(p, "~\\") || strings.HasPrefix(p, `~\`) {
+		return filepath.Clean(filepath.Join(home, p[2:]))
 	}
 	return filepath.Clean(p)
 }
