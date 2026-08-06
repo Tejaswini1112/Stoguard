@@ -10,15 +10,17 @@
 </p>
 
 <p align="center">
-  <a href="website/downloads/Stoguard-0.4.2.dmg"><strong>⬇ macOS DMG</strong></a>
+  <a href="https://github.com/Tejaswini1112/Stoguard/releases/latest/download/Stoguard-0.4.2.dmg"><strong>⬇ macOS DMG</strong></a>
   &nbsp;·&nbsp;
-  <a href="website/downloads/stoguard-windows-amd64.exe"><strong>⬇ Windows</strong></a>
+  <a href="https://github.com/Tejaswini1112/Stoguard/releases/latest/download/stoguard-windows-amd64.exe"><strong>⬇ Windows</strong></a>
   &nbsp;·&nbsp;
-  <a href="website/downloads/stoguard-linux-amd64"><strong>⬇ Linux</strong></a>
+  <a href="https://github.com/Tejaswini1112/Stoguard/releases/latest/download/stoguard-linux-amd64"><strong>⬇ Linux</strong></a>
   &nbsp;·&nbsp;
-  <a href="website/downloads/stoguard-darwin-arm64">Apple Silicon</a>
+  <a href="https://github.com/Tejaswini1112/Stoguard/releases/latest/download/stoguard-darwin-arm64">Apple Silicon</a>
   ·
-  <a href="website/downloads/stoguard-linux-arm64">Linux ARM</a>
+  <a href="https://github.com/Tejaswini1112/Stoguard/releases/latest/download/stoguard-linux-arm64">Linux ARM</a>
+  ·
+  <a href="https://github.com/Tejaswini1112/Stoguard/releases/latest">Releases</a>
 </p>
 
 <p align="center">
@@ -50,7 +52,7 @@ Stoguard finds what’s eating a developer workstation — Docker, package cache
 | **Native macOS app (universal)** | `Sources/Stoguard` → `Stoguard.app` / DMG | macOS 14+ Apple Silicon **and** Intel |
 | **Cross-platform engine + UI** | `stoguard/` (Go) → `:8787` | macOS · Windows · Linux (x64/ARM) |
 | **OS Trash** | Finder / Recycle Bin / FreeDesktop | Best-effort native trash on each OS |
-| **Marketing site** | `website/` | Static (`:8765` locally) |
+| **Marketing site** | `website/` | Static (Vercel or `python3 -m http.server 8765`) |
 
 ### Core capabilities
 - Parallel rule-based scan with adaptive skips + fingerprint cache  
@@ -77,22 +79,24 @@ Stoguard finds what’s eating a developer workstation — Docker, package cache
 
 ## Downloads
 
+Binaries ship on **[GitHub Releases](https://github.com/Tejaswini1112/Stoguard/releases/latest)** (recommended). Repo copies under `website/downloads/` are for local builds.
+
 | Platform | Artifact |
 |----------|----------|
-| **macOS** (universal app) | [`Stoguard-0.4.2.dmg`](website/downloads/Stoguard-0.4.2.dmg) |
-| **Windows** (x64) | [`stoguard-windows-amd64.exe`](website/downloads/stoguard-windows-amd64.exe) |
-| **Windows** (ARM64) | [`stoguard-windows-arm64.exe`](website/downloads/stoguard-windows-arm64.exe) |
-| **Linux** (x64) | [`stoguard-linux-amd64`](website/downloads/stoguard-linux-amd64) |
-| **Linux** (ARM64) | [`stoguard-linux-arm64`](website/downloads/stoguard-linux-arm64) |
-| **macOS CLI** Apple Silicon | [`stoguard-darwin-arm64`](website/downloads/stoguard-darwin-arm64) |
-| **macOS CLI** Intel | [`stoguard-darwin-amd64`](website/downloads/stoguard-darwin-amd64) |
+| **macOS** (universal app) | [`Stoguard-0.4.2.dmg`](https://github.com/Tejaswini1112/Stoguard/releases/latest/download/Stoguard-0.4.2.dmg) |
+| **Windows** (x64) | [`stoguard-windows-amd64.exe`](https://github.com/Tejaswini1112/Stoguard/releases/latest/download/stoguard-windows-amd64.exe) |
+| **Windows** (ARM64) | [`stoguard-windows-arm64.exe`](https://github.com/Tejaswini1112/Stoguard/releases/latest/download/stoguard-windows-arm64.exe) |
+| **Linux** (x64) | [`stoguard-linux-amd64`](https://github.com/Tejaswini1112/Stoguard/releases/latest/download/stoguard-linux-amd64) |
+| **Linux** (ARM64) | [`stoguard-linux-arm64`](https://github.com/Tejaswini1112/Stoguard/releases/latest/download/stoguard-linux-arm64) |
+| **macOS CLI** Apple Silicon | [`stoguard-darwin-arm64`](https://github.com/Tejaswini1112/Stoguard/releases/latest/download/stoguard-darwin-arm64) |
+| **macOS CLI** Intel | [`stoguard-darwin-amd64`](https://github.com/Tejaswini1112/Stoguard/releases/latest/download/stoguard-darwin-amd64) |
 
-Also via the [marketing site](website/index.html#downloads) (`python3 -m http.server 8765` in `website/`).
+Also via the marketing site (Vercel) or locally: `python3 -m http.server 8765` in `website/`.
 
 ## Quick start
 
 ### Windows
-1. Download [`stoguard-windows-amd64.exe`](website/downloads/stoguard-windows-amd64.exe) (or ARM64)
+1. Download [`stoguard-windows-amd64.exe`](https://github.com/Tejaswini1112/Stoguard/releases/latest/download/stoguard-windows-amd64.exe) (or ARM64)
 2. If SmartScreen warns → **More info → Run anyway**
 3. Double-click — UI opens at `http://127.0.0.1:8787`
 4. Scan → review → clean to Recycle Bin

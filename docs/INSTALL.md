@@ -8,7 +8,7 @@ Stoguard ships a **native macOS app** and a **cross-platform Go engine** (Window
 
 ### Option A — Download the `.exe`
 
-1. Download [`stoguard-windows-amd64.exe`](../website/downloads/stoguard-windows-amd64.exe) (Intel/AMD) or [`stoguard-windows-arm64.exe`](../website/downloads/stoguard-windows-arm64.exe) (Snapdragon/ARM)
+1. Download [`stoguard-windows-amd64.exe`](https://github.com/Tejaswini1112/Stoguard/releases/latest/download/stoguard-windows-amd64.exe) (Intel/AMD) or [`stoguard-windows-arm64.exe`](https://github.com/Tejaswini1112/Stoguard/releases/latest/download/stoguard-windows-arm64.exe) (Snapdragon/ARM)
 2. If SmartScreen warns: **More info → Run anyway** (builds are unsigned DIY binaries)
 3. Double-click the `.exe` — it opens the UI in your browser at `http://127.0.0.1:8787`
 4. Click **Scan**, review findings, clean with Recycle Bin (never silent delete)
@@ -53,7 +53,7 @@ Delete the `.exe` and remove `%APPDATA%\Stoguard` if you want a clean slate.
 
 ## Linux
 
-Download [`stoguard-linux-amd64`](../website/downloads/stoguard-linux-amd64) or [`stoguard-linux-arm64`](../website/downloads/stoguard-linux-arm64):
+Download [`stoguard-linux-amd64`](https://github.com/Tejaswini1112/Stoguard/releases/latest/download/stoguard-linux-amd64) or [`stoguard-linux-arm64`](https://github.com/Tejaswini1112/Stoguard/releases/latest/download/stoguard-linux-arm64):
 
 ```bash
 chmod +x stoguard-linux-amd64
@@ -71,7 +71,7 @@ Data dir: `~/.local/share/stoguard` (or `$XDG_DATA_HOME/stoguard`).
 
 ### Option A — Download the DMG
 
-1. Download [`Stoguard-0.4.2.dmg`](../website/downloads/Stoguard-0.4.2.dmg) from this repo or the [marketing site](../website/index.html)
+1. Download [`Stoguard-0.4.2.dmg`](https://github.com/Tejaswini1112/Stoguard/releases/latest/download/Stoguard-0.4.2.dmg) from [Releases](https://github.com/Tejaswini1112/Stoguard/releases/latest) or the marketing site
 2. Open the DMG and drag **Stoguard.app** to **Applications**
 3. If macOS blocks launch: **right-click → Open**, or `xattr -cr /Applications/Stoguard.app`
 4. Continue with [Grant Full Disk Access](#grant-full-disk-access) below
