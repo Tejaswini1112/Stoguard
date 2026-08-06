@@ -22,6 +22,7 @@ const state = {
   scanning: false,
   scanAutomation: localStorage.getItem(AUTO_KEY) === "1",
   autoTimer: null,
+  findingsFilter: "all", // all | safe | check | command
 };
 
 const titles = {
@@ -50,6 +51,14 @@ function currentOS() {
 function isWindows() {
   const o = String(currentOS()).toLowerCase();
   return o === "windows" || o === "win32";
+}
+
+function trashVerb() {
+  return isWindows() ? "Recycle Bin" : "Trash";
+}
+
+function trashButtonLabel() {
+  return isWindows() ? "Recycle" : "Trash";
 }
 
 function packageFinderHint() {
@@ -243,7 +252,7 @@ function updateTierUI() {
   });
 }
 
-function itemRow(it, { showChildren = true } = {}) {
+function itemRow(it, { showChildren = true, selectable = false } = {}) {
   const kids =
     showChildren && it.children?.length
       ? `<div class="meta">Top: ${it.children
@@ -251,20 +260,31 @@ function itemRow(it, { showChildren = true } = {}) {
           .map((c) => escapeHtml(c.name))
           .join(", ")}</div>`
       : "";
-  const trashBtn =
-    it.safety === "safe" || it.safety === "check"
-      ? `<button class="btn small" data-trash="${escapeAttr(it.path)}" data-name="${escapeAttr(it.name)}">Trash</button>`
-      : "";
-  return `<div class="row">
+  const canTrash = it.safety === "safe" || it.safety === "check";
+  const check =
+    selectable && canTrash
+      ? `<input type="checkbox" class="clean-check" data-path="${escapeAttr(it.path)}" data-name="${escapeAttr(it.name)}" data-safety="${escapeAttr(it.safety)}" ${it.safety === "safe" ? "checked" : ""} />`
+      : selectable
+        ? `<span class="meta" title="Use the CLI command — not direct delete">—</span>`
+        : "";
+  let actionBtn = "";
+  if (canTrash) {
+    actionBtn = `<button class="btn small primary" data-trash="${escapeAttr(it.path)}" data-name="${escapeAttr(it.name)}">${trashButtonLabel()}</button>`;
+  } else if (it.safety === "command" && it.command) {
+    actionBtn = `<button class="btn small" data-copy-cmd="${escapeAttr(it.command)}">Copy command</button>`;
+  }
+  return `<div class="row ${selectable ? "row-select" : ""}">
+    ${selectable ? `<div class="check-cell">${check}</div>` : ""}
     <div>
       <div class="name">${escapeHtml(it.name)} <span class="badge ${escapeAttr(it.safety)}">${escapeHtml(it.safety)}</span></div>
       <div class="meta">${escapeHtml(it.path)}</div>
+      ${it.safety === "command" && it.command ? `<div class="meta">CLI: <code>${escapeHtml(it.command)}</code></div>` : ""}
       ${kids}
     </div>
     <div class="size">${fmtBytes(it.sizeBytes)}</div>
     <div class="actions">
       <button class="btn small" data-reveal="${escapeAttr(it.path)}">Reveal</button>
-      ${trashBtn}
+      ${actionBtn}
     </div>
   </div>`;
 }
@@ -461,17 +481,25 @@ function renderOverview() {
   if (!state.scan) {
     el.innerHTML = `<div class="empty">
       Use <strong>Scan now</strong> at the top (or <strong>Scan workstation</strong> in the sidebar) to analyze developer caches on this machine.<br/><br/>
-      Turn on <strong>Scan automation</strong> to be notified, run a scan, and get prompted to view or clear results when it finishes.
+      After a scan, select <strong>safe</strong> items and click <strong>Clean Selected</strong> — items go to ${trashVerb()} (never silent delete).
     </div>`;
     return;
   }
   const s = state.scan;
   const d = state.doctor;
   const h = state.intelligence?.health;
-  const top = s.items.slice(0, 8);
+  const filter = state.findingsFilter || "all";
+  let list = s.items || [];
+  if (filter === "safe") list = list.filter((it) => it.safety === "safe");
+  else if (filter === "check") list = list.filter((it) => it.safety === "check");
+  else if (filter === "command") list = list.filter((it) => it.safety === "command");
+  const safeCount = (s.items || []).filter((it) => it.safety === "safe").length;
   const cats = Object.entries(s.categoryTotals || {})
     .sort((a, b) => b[1] - a[1])
     .slice(0, 6);
+  const pill = (id, label) =>
+    `<button type="button" class="btn small filter-pill ${filter === id ? "primary" : "ghost"}" data-filter="${id}">${label}</button>`;
+
   el.innerHTML = `
     <div class="grid">
       ${
@@ -486,6 +514,10 @@ function renderOverview() {
       <div class="card wide">
         <h3>${escapeHtml(d?.headline || "Scan complete")}</h3>
         <p>${(d?.summaryLines || []).map(escapeHtml).join(" · ")}</p>
+        <p class="hint" style="margin-top:8px">
+          Like VACS: review findings → check safe items → <strong>Clean Selected</strong> → ${trashVerb()}.
+          Docker / WSL stay <span class="badge command">command</span> (copy CLI — no direct delete).
+        </p>
       </div>
       <div class="card">
         <h3>Categories</h3>
@@ -514,10 +546,54 @@ function renderOverview() {
         }
       </div>
       <div class="card wide">
-        <h3>Largest findings</h3>
-        <div class="list" style="margin-top:12px">${top.map((it) => itemRow(it)).join("")}</div>
+        <div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:space-between">
+          <h3 style="margin:0">Findings · Clean</h3>
+          <div style="display:flex;flex-wrap:wrap;gap:6px">
+            ${pill("all", "All")}
+            ${pill("safe", `Safe (${safeCount})`)}
+            ${pill("check", "Check first")}
+            ${pill("command", "Commands")}
+          </div>
+        </div>
+        <div class="clean-bar" style="display:flex;flex-wrap:wrap;gap:8px;margin:12px 0;align-items:center">
+          <button class="btn primary" id="btn-clean-selected">Clean Selected → ${trashVerb()}</button>
+          <button class="btn small" id="btn-select-safe">Select all safe</button>
+          <button class="btn small ghost" id="btn-clear-sel">Clear selection</button>
+          <span class="hint">${fmtBytes(s.safeBytes)} marked safe · recoverable until you empty ${trashVerb()}</span>
+        </div>
+        <div class="list list-select" style="margin-top:8px">${
+          list.length
+            ? list.map((it) => itemRow(it, { selectable: true })).join("")
+            : `<div class="empty">No findings in this filter.</div>`
+        }</div>
       </div>
     </div>`;
+
+  el.querySelectorAll("[data-filter]").forEach((btn) => {
+    btn.onclick = () => {
+      state.findingsFilter = btn.dataset.filter;
+      renderOverview();
+      bindActions();
+    };
+  });
+  const selSafe = $("#btn-select-safe");
+  if (selSafe) {
+    selSafe.onclick = () => {
+      el.querySelectorAll(".clean-check").forEach((c) => {
+        c.checked = c.dataset.safety === "safe";
+      });
+    };
+  }
+  const clearSel = $("#btn-clear-sel");
+  if (clearSel) {
+    clearSel.onclick = () => {
+      el.querySelectorAll(".clean-check").forEach((c) => {
+        c.checked = false;
+      });
+    };
+  }
+  const cleanBtn = $("#btn-clean-selected");
+  if (cleanBtn) cleanBtn.onclick = () => cleanSelected();
 }
 
 
@@ -1017,18 +1093,34 @@ function bindActions() {
       }
     };
   });
+  document.querySelectorAll("[data-copy-cmd]").forEach((btn) => {
+    btn.onclick = async () => {
+      try {
+        await navigator.clipboard.writeText(btn.dataset.copyCmd);
+        toast("Command copied — paste in Terminal / PowerShell");
+      } catch {
+        toast(btn.dataset.copyCmd);
+      }
+    };
+  });
   document.querySelectorAll("[data-trash]").forEach((btn) => {
     btn.onclick = async () => {
-      if (!confirm(`Move “${btn.dataset.name}” to Trash?\n\n${btn.dataset.trash}`)) return;
+      if (!confirm(`Move “${btn.dataset.name}” to ${trashVerb()}?\n\n${btn.dataset.trash}\n\nRecoverable until you empty ${trashVerb()}.`)) return;
       try {
-        await api("/api/trash", {
+        const data = await api("/api/trash", {
           method: "POST",
           body: JSON.stringify({ path: btn.dataset.trash }),
         });
-        toast("Moved to Trash");
-        await runScan();
+        const r = (data.results && data.results[0]) || {};
+        if (r.status === "error") throw new Error(r.error || "Clean failed");
+        if (r.method === "staging") {
+          toast(`Staged (Recycle Bin blocked). Look in: ${r.destination || "%APPDATA%\\\\Stoguard\\\\Recycle"}`);
+        } else {
+          toast(`Moved to ${trashVerb()}`);
+        }
+        await runScan({ source: "after-clean" });
       } catch (e) {
-        toast(e.message);
+        toast(`Clean failed: ${e.message}`);
       }
     };
   });
@@ -1071,6 +1163,36 @@ function bindActions() {
   }
   const refresh = $("#refresh-fleet");
   if (refresh) refresh.onclick = () => loadFleet();
+}
+
+async function cleanSelected() {
+  const boxes = [...document.querySelectorAll(".clean-check:checked")];
+  if (!boxes.length) {
+    toast("Select safe/check items first (or click Select all safe)");
+    return;
+  }
+  const checkFirst = boxes.filter((b) => b.dataset.safety === "check");
+  let msg = `Move ${boxes.length} item(s) to ${trashVerb()}?\n\nNothing is permanent until you empty ${trashVerb()}.`;
+  if (checkFirst.length) {
+    msg += `\n\n${checkFirst.length} item(s) are “check first” — review paths carefully.`;
+  }
+  if (!confirm(msg)) return;
+  const paths = boxes.map((b) => b.dataset.path);
+  try {
+    const data = await api("/api/trash", {
+      method: "POST",
+      body: JSON.stringify({ paths }),
+    });
+    const staged = (data.results || []).filter((r) => r.method === "staging");
+    const failed = (data.results || []).filter((r) => r.status === "error");
+    let note = `Cleaned ${data.cleaned || 0} / ${data.total || paths.length} → ${trashVerb()}`;
+    if (staged.length) note += ` · ${staged.length} staged under %APPDATA%\\Stoguard\\Recycle`;
+    if (failed.length) note += ` · ${failed.length} failed: ${failed[0].error || ""}`;
+    toast(note);
+    await runScan({ source: "after-clean" });
+  } catch (e) {
+    toast(`Clean failed: ${e.message}`);
+  }
 }
 
 async function loadFleet() {
@@ -1214,8 +1336,7 @@ async function runScan({ source = "manual" } = {}) {
     const summary = `Found ${state.scan.items.length} findings · ${fmtBytes(state.scan.safeBytes)} safe to clean · ${fmtBytes(state.scan.checkBytes)} to review.`;
     toast(summary);
     notifyOS("Stoguard — scan complete", summary);
-    // Prefetch installs so Package Finder isn’t empty when opened.
-    if (allows("packages")) loadPackages({ force: true });
+    // Package Finder loads on demand (full Local\\Programs walks are slow on Windows).
     render();
 
     if (fromAuto || state.scanAutomation) {
@@ -1333,7 +1454,6 @@ async function init() {
     setView(state.view);
   } else {
     render();
-    if (allows("packages")) loadPackages({ force: true });
   }
 }
 

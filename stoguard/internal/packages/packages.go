@@ -1,6 +1,7 @@
 package packages
 
 import (
+	"io/fs"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -191,12 +192,22 @@ func dirPackages(root, source string, min int64) []Finding {
 		return nil
 	}
 	var out []Finding
+	// Cap how many install dirs we fully size (Windows Local\\Programs can be huge).
+	limit := 40
+	if runtime.GOOS == "windows" {
+		limit = 25
+	}
+	counted := 0
 	for _, e := range entries {
 		if !e.IsDir() {
 			continue
 		}
+		if counted >= limit {
+			break
+		}
 		path := filepath.Join(root, e.Name())
-		size := dirSize(path)
+		size := dirSizeFast(path)
+		counted++
 		if size < min {
 			continue
 		}
@@ -229,13 +240,32 @@ func withIdle(f Finding, path string) Finding {
 }
 
 func dirSize(root string) int64 {
+	return dirSizeFast(root)
+}
+
+func dirSizeFast(root string) int64 {
 	// Prefer du -sk (fast) over walking every file — Cellar trees are huge.
 	if n, ok := duSK(root); ok {
 		return n
 	}
+	deadline := time.Now().Add(3 * time.Second)
+	maxFiles := 40_000
+	if runtime.GOOS == "windows" {
+		maxFiles = 15_000
+	}
 	var total int64
+	var files int
 	_ = filepath.WalkDir(root, func(path string, d os.DirEntry, err error) error {
-		if err != nil || d.IsDir() {
+		if err != nil {
+			return nil
+		}
+		if time.Now().After(deadline) || files >= maxFiles {
+			return fs.SkipAll
+		}
+		if d.IsDir() {
+			if (d.Type() & os.ModeSymlink) != 0 {
+				return filepath.SkipDir
+			}
 			return nil
 		}
 		info, err := d.Info()
@@ -243,6 +273,7 @@ func dirSize(root string) int64 {
 			return nil
 		}
 		total += info.Size()
+		files++
 		return nil
 	})
 	return total

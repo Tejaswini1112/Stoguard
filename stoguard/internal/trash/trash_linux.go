@@ -12,8 +12,7 @@ import (
 	"github.com/stoguard/stoguard/internal/platform"
 )
 
-func moveOS(path string) error {
-	// Prefer desktop trash helpers when present.
+func moveOSDetailed(path string) (osResult, error) {
 	for _, helper := range [][]string{
 		{"gio", "trash", path},
 		{"trash-put", path},
@@ -25,11 +24,14 @@ func moveOS(path string) error {
 		cmd := exec.Command(helper[0], helper[1:]...)
 		if err := cmd.Run(); err == nil {
 			if _, statErr := os.Lstat(path); statErr != nil {
-				return nil
+				return osResult{Method: "trash"}, nil
 			}
 		}
 	}
-	return moveFreeDesktop(path)
+	if err := moveFreeDesktop(path); err != nil {
+		return osResult{}, err
+	}
+	return osResult{Method: "trash"}, nil
 }
 
 func moveFreeDesktop(path string) error {
@@ -49,7 +51,6 @@ func moveFreeDesktop(path string) error {
 		return err
 	}
 	if err := os.Rename(path, dest); err != nil {
-		// Cross-device: copy+remove
 		return fmt.Errorf("move to trash: %w", err)
 	}
 	return nil

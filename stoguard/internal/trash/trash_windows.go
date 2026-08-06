@@ -12,20 +12,52 @@ import (
 	"github.com/stoguard/stoguard/internal/platform"
 )
 
-func moveOS(path string) error {
-	if err := sendToRecycleBin(path); err == nil {
-		return nil
+func moveOSDetailed(path string) (osResult, error) {
+	if err := sendToRecycleBinVB(path); err == nil {
+		return osResult{Method: "recycle_bin"}, nil
 	} else {
-		// Fallback staging if PowerShell / VB is unavailable.
-		recycle := filepath.Join(platform.DataDir(), "Recycle")
-		if mkErr := os.MkdirAll(recycle, 0o755); mkErr != nil {
-			return fmt.Errorf("recycle bin failed (%v) and staging failed: %w", err, mkErr)
+		vbErr := err
+		if err := sendToRecycleBinShell(path); err == nil {
+			return osResult{Method: "recycle_bin"}, nil
+		} else {
+			shellErr := err
+			recycle := filepath.Join(platform.DataDir(), "Recycle")
+			if mkErr := os.MkdirAll(recycle, 0o755); mkErr != nil {
+				return osResult{}, fmt.Errorf("Recycle Bin failed (%v; %v) and staging failed: %w", vbErr, shellErr, mkErr)
+			}
+			if err := moveUnique(path, recycle); err != nil {
+				return osResult{}, fmt.Errorf("Recycle Bin failed (%v; %v); staging failed: %w", vbErr, shellErr, err)
+			}
+			return osResult{Method: "staging", Destination: recycle}, nil
 		}
-		return moveUnique(path, recycle)
 	}
 }
 
-func sendToRecycleBin(path string) error {
+func powershellExe() string {
+	root := os.Getenv("SystemRoot")
+	if root == "" {
+		root = `C:\Windows`
+	}
+	candidate := filepath.Join(root, "System32", "WindowsPowerShell", "v1.0", "powershell.exe")
+	if _, err := os.Stat(candidate); err == nil {
+		return candidate
+	}
+	return "powershell.exe"
+}
+
+func runPowerShell(script string) (string, error) {
+	cmd := exec.Command(
+		powershellExe(),
+		"-NoProfile",
+		"-NonInteractive",
+		"-ExecutionPolicy", "Bypass",
+		"-Command", script,
+	)
+	out, err := cmd.CombinedOutput()
+	return strings.TrimSpace(string(out)), err
+}
+
+func sendToRecycleBinVB(path string) error {
 	info, err := os.Lstat(path)
 	if err != nil {
 		return err
@@ -43,14 +75,37 @@ func sendToRecycleBin(path string) error {
 			escaped,
 		)
 	}
-	cmd := exec.Command("powershell", "-NoProfile", "-NonInteractive", "-Command", ps)
-	out, err := cmd.CombinedOutput()
+	out, err := runPowerShell(ps)
 	if err != nil {
-		return fmt.Errorf("powershell recycle: %w (%s)", err, strings.TrimSpace(string(out)))
+		return fmt.Errorf("powershell VB recycle: %w (%s)", err, out)
 	}
-	// Confirm original is gone
 	if _, err := os.Lstat(path); err == nil {
-		return fmt.Errorf("path still exists after recycle attempt")
+		return fmt.Errorf("path still exists after VB recycle")
+	}
+	return nil
+}
+
+func sendToRecycleBinShell(path string) error {
+	escaped := strings.ReplaceAll(path, "'", "''")
+	ps := fmt.Sprintf(`
+$ErrorActionPreference = 'Stop'
+$p = '%s'
+if (-not (Test-Path -LiteralPath $p)) { throw 'missing' }
+$shell = New-Object -ComObject Shell.Application
+$dir = Split-Path -Parent $p
+$name = Split-Path -Leaf $p
+$item = $shell.NameSpace($dir).ParseName($name)
+if ($null -eq $item) { throw 'parse failed' }
+$item.InvokeVerb('delete')
+Start-Sleep -Milliseconds 500
+if (Test-Path -LiteralPath $p) { throw 'still exists' }
+`, escaped)
+	out, err := runPowerShell(ps)
+	if err != nil {
+		return fmt.Errorf("shell recycle: %w (%s)", err, out)
+	}
+	if _, err := os.Lstat(path); err == nil {
+		return fmt.Errorf("path still exists after shell recycle")
 	}
 	return nil
 }

@@ -10,6 +10,9 @@ All notable changes to Stoguard are documented here.
 - Package Finder finds npm / Scoop / winget / pipx on Windows; UI copy is OS-aware
 - Ships **windows-arm64.exe**; Windows install docs in README / INSTALL / SUPPORT
 - PowerShell helper: `stoguard/scripts/run.ps1`
+- **Faster Windows scans** — depth/time caps, skip junction storms, no auto Package Finder after every scan
+- **Clean Selected** (VACS-style) in Overview + Recycle Bin button labels on Windows
+- Hardened Windows Recycle (PowerShell Bypass + Shell.Application + staging fallback with clear UI message)
 
 ## [0.4.0] — 2026-08-05
 

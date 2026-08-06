@@ -206,29 +206,64 @@ func (s *Server) handleTrash(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	var body struct {
-		Path string `json:"path"`
+		Path  string   `json:"path"`
+		Paths []string `json:"paths"`
 	}
-	if err := json.NewDecoder(r.Body).Decode(&body); err != nil || body.Path == "" {
-		http.Error(w, "path required", 400)
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		http.Error(w, "invalid json", 400)
 		return
 	}
-	if err := trash.Move(body.Path); err != nil {
-		http.Error(w, err.Error(), 400)
+	paths := body.Paths
+	if body.Path != "" {
+		paths = append(paths, body.Path)
+	}
+	if len(paths) == 0 {
+		http.Error(w, "path or paths required", 400)
 		return
 	}
-	// Learn from cleans when we can map path → last scan item id.
+
+	type one struct {
+		Path        string `json:"path"`
+		Status      string `json:"status"`
+		Method      string `json:"method,omitempty"`
+		Destination string `json:"destination,omitempty"`
+		Error       string `json:"error,omitempty"`
+	}
+	results := make([]one, 0, len(paths))
+	okCount := 0
 	s.mu.RLock()
 	last := s.last
 	s.mu.RUnlock()
-	if last != nil {
-		for _, it := range last.Items {
-			if it.Path == body.Path {
-				_ = intelligence.RecordClean(it.ID)
-				break
+
+	for _, p := range paths {
+		res, err := trash.MoveDetailed(p)
+		entry := one{Path: p}
+		if err != nil {
+			entry.Status = "error"
+			entry.Error = err.Error()
+		} else {
+			entry.Status = "ok"
+			entry.Method = res.Method
+			entry.Destination = res.Destination
+			okCount++
+			if last != nil {
+				for _, it := range last.Items {
+					if it.Path == p {
+						_ = intelligence.RecordClean(it.ID)
+						break
+					}
+				}
 			}
 		}
+		results = append(results, entry)
 	}
-	writeJSON(w, map[string]string{"status": "ok"})
+
+	writeJSON(w, map[string]any{
+		"status":  "ok",
+		"cleaned": okCount,
+		"total":   len(paths),
+		"results": results,
+	})
 }
 
 func (s *Server) handleAsk(w http.ResponseWriter, r *http.Request) {

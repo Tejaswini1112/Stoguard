@@ -10,13 +10,35 @@ import (
 	"github.com/stoguard/stoguard/internal/safety"
 )
 
+// MoveResult is returned to the API so the UI can explain Recycle vs staging.
+type MoveResult struct {
+	Method      string `json:"method"`
+	Destination string `json:"destination,omitempty"`
+	Path        string `json:"path"`
+}
+
+type osResult struct {
+	Method      string
+	Destination string
+}
+
 // Move sends a path to the OS trash / recycle bin.
 func Move(path string) error {
+	_, err := MoveDetailed(path)
+	return err
+}
+
+// MoveDetailed returns where the item went (recycle bin vs staging folder).
+func MoveDetailed(path string) (MoveResult, error) {
 	safe, err := safety.ValidateForTrash(path)
 	if err != nil {
-		return err
+		return MoveResult{}, err
 	}
-	return moveOS(safe)
+	res, err := moveOSDetailed(safe)
+	if err != nil {
+		return MoveResult{}, err
+	}
+	return MoveResult{Method: res.Method, Destination: res.Destination, Path: safe}, nil
 }
 
 func moveUnique(path, dir string) error {
@@ -27,7 +49,6 @@ func moveUnique(path, dir string) error {
 	if err := os.Rename(path, dest); err == nil {
 		return nil
 	} else {
-		// Cross-volume rename fails on Windows; copy then remove.
 		if copyErr := copyRecursive(path, dest); copyErr != nil {
 			_ = os.RemoveAll(dest)
 			return fmt.Errorf("rename failed (%v); copy failed: %w", err, copyErr)

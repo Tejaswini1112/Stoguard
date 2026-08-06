@@ -245,6 +245,13 @@ main { padding: 28px 32px 48px; overflow: auto; }
   background: var(--bg2);
   border: 1px solid transparent;
 }
+.row.row-select {
+  grid-template-columns: 28px 1fr auto auto;
+}
+.row .check-cell { display: flex; align-items: center; justify-content: center; }
+.row .check-cell input { width: 16px; height: 16px; accent-color: var(--accent-strong); cursor: pointer; }
+.clean-bar .hint { color: var(--muted); font-size: 0.85rem; }
+.filter-pill.active, .btn.filter-pill.primary { /* selected filter */ }
 .row:hover { border-color: var(--line); }
 .row .name { font-weight: 600; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .row .meta { color: var(--muted); font-size: 0.82rem; margin-top: 2px; font-family: var(--mono); }

@@ -11,19 +11,19 @@ import (
 	"github.com/stoguard/stoguard/internal/platform"
 )
 
-func moveOS(path string) error {
-	// Prefer Finder so items appear in Trash with proper Put Back metadata.
+func moveOSDetailed(path string) (osResult, error) {
 	script := fmt.Sprintf(`tell application "Finder" to delete (POSIX file %q as alias)`, path)
 	cmd := exec.Command("osascript", "-e", script)
-	if out, err := cmd.CombinedOutput(); err == nil {
-		return nil
+	if _, err := cmd.CombinedOutput(); err == nil {
+		return osResult{Method: "trash"}, nil
 	} else {
-		// Fall back to ~/.Trash rename if AppleScript blocked.
-		_ = out
-		trash := filepath.Join(platform.Home(), ".Trash")
-		if mkErr := os.MkdirAll(trash, 0o700); mkErr != nil {
-			return fmt.Errorf("finder trash failed (%v) and ~/.Trash unavailable: %w", err, mkErr)
+		trashDir := filepath.Join(platform.Home(), ".Trash")
+		if mkErr := os.MkdirAll(trashDir, 0o700); mkErr != nil {
+			return osResult{}, fmt.Errorf("finder trash failed (%v) and ~/.Trash unavailable: %w", err, mkErr)
 		}
-		return moveUnique(path, trash)
+		if err := moveUnique(path, trashDir); err != nil {
+			return osResult{}, err
+		}
+		return osResult{Method: "staging", Destination: trashDir}, nil
 	}
 }

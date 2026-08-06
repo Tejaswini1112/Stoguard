@@ -43,6 +43,7 @@ cd stoguard && ./scripts/build.sh
 | Browser doesn’t open | Open `http://127.0.0.1:8787` manually |
 | Recycle Bin fails | Items land in `%APPDATA%\Stoguard\Recycle` — move/delete from there |
 | Empty scan | Run as your user (not a service); ensure tools like Docker/npm created AppData caches |
+| Scan takes many minutes | First scan walks caches under Defender — use the latest `.exe` (timed/depth-capped). Second scan is faster (cache). Prefer `docker system prune` for Docker disks. |
 | Defender quarantine | Allow the file; report false positive if needed |
 
 ### Uninstall (Windows)
