@@ -134,7 +134,7 @@ function clearScanResults() {
   state.models = [];
   // Keep Package Finder installs — those are independent of workstation scan.
   state.agentTools = [];
-  toast("Scan results cleared — run Scan again when ready");
+  toast("Scan results cleared — run Smart Scan when ready");
   setView("overview");
   render();
 }
@@ -294,15 +294,15 @@ function renderHero() {
   const box = $("#hero-stats");
   const autoOn = state.scanAutomation;
   const scanning = state.scanning;
-  const primaryLabel = scanning ? "Scanning…" : s ? "Scan again" : "Scan now";
+  const primaryLabel = scanning ? "Scanning…" : s ? "Smart Scan again" : "Smart Scan";
   const autoLabel = autoOn ? "Automation on" : "Scan automation";
   const statusText = scanning
-    ? "Scan in progress…"
+    ? "Smart Scan in progress…"
     : autoOn
       ? "Automation on · re-scans every 30 min"
       : s
-        ? "Ready · scan again anytime"
-        : "No scan yet — start here";
+        ? "Ready · run Smart Scan anytime"
+        : "No scan yet — start with Smart Scan";
 
   const stats = s
     ? `
@@ -312,11 +312,17 @@ function renderHero() {
     <div class="stat"><b>${s.items.length}</b><span>Findings</span></div>`
     : `<div class="stat"><b>—</b><span>No results yet</span></div>`;
 
+  const cleanHero = s
+    ? `<button class="btn primary" id="btn-clean-hero" type="button">Clean Selected → ${trashVerb()}</button>
+       <button class="btn ghost" id="btn-jump-findings" type="button">Review findings</button>`
+    : "";
+
   box.innerHTML = `
     ${stats}
     <div class="scan-controls">
       <div class="scan-row">
         <button class="btn primary" id="btn-scan-top" ${scanning ? "disabled" : ""}>${primaryLabel}</button>
+        ${cleanHero}
         <button class="btn ${autoOn ? "active-auto" : "ghost"}" id="btn-scan-auto" ${scanning ? "disabled" : ""}>${autoLabel}</button>
       </div>
       <div class="scan-status ${autoOn ? "on" : ""}" id="scan-status">${statusText}</div>
@@ -326,6 +332,34 @@ function renderHero() {
   if (top) top.onclick = () => runScan({ source: "manual" });
   const autoBtn = $("#btn-scan-auto");
   if (autoBtn) autoBtn.onclick = () => toggleScanAutomation();
+  const cleanHeroBtn = $("#btn-clean-hero");
+  if (cleanHeroBtn) {
+    cleanHeroBtn.onclick = () => {
+      // Prefer Overview findings list; select safe if none checked yet.
+      setView("overview");
+      requestAnimationFrame(() => {
+        const checks = document.querySelectorAll(".clean-check");
+        if (![...checks].some((c) => c.checked)) {
+          checks.forEach((c) => {
+            if (c.dataset.safety === "safe") c.checked = true;
+          });
+        }
+        const bar = document.querySelector(".clean-bar");
+        if (bar) bar.scrollIntoView({ behavior: "smooth", block: "center" });
+        cleanSelected();
+      });
+    };
+  }
+  const jump = $("#btn-jump-findings");
+  if (jump) {
+    jump.onclick = () => {
+      setView("overview");
+      requestAnimationFrame(() => {
+        const bar = document.querySelector(".clean-bar") || document.querySelector(".list-select");
+        if (bar) bar.scrollIntoView({ behavior: "smooth", block: "start" });
+      });
+    };
+  }
 }
 
 async function loadIntelligence() {
@@ -480,7 +514,7 @@ function renderOverview() {
   const el = $("#view-overview");
   if (!state.scan) {
     el.innerHTML = `<div class="empty">
-      Use <strong>Scan now</strong> at the top (or <strong>Scan workstation</strong> in the sidebar) to analyze developer caches on this machine.<br/><br/>
+      Click <strong>Smart Scan</strong> (top right or sidebar) to analyze developer caches on this machine.<br/><br/>
       After a scan, select <strong>safe</strong> items and click <strong>Clean Selected</strong> — items go to ${trashVerb()} (never silent delete).
     </div>`;
     return;
@@ -502,6 +536,14 @@ function renderOverview() {
 
   el.innerHTML = `
     <div class="grid">
+      <div class="card wide">
+        <h3>${escapeHtml(d?.headline || "Scan complete")}</h3>
+        <p>${(d?.summaryLines || []).map(escapeHtml).join(" · ")}</p>
+        <p class="hint" style="margin-top:8px">
+          Smart Scan done → check safe items → <strong>Clean Selected</strong> → ${trashVerb()}.
+          Docker stays <span class="badge command">command</span> (copy CLI — no direct delete).
+        </p>
+      </div>
       ${
         h
           ? `<div class="card">
@@ -512,12 +554,26 @@ function renderOverview() {
           : ""
       }
       <div class="card wide">
-        <h3>${escapeHtml(d?.headline || "Scan complete")}</h3>
-        <p>${(d?.summaryLines || []).map(escapeHtml).join(" · ")}</p>
-        <p class="hint" style="margin-top:8px">
-          Like VACS: review findings → check safe items → <strong>Clean Selected</strong> → ${trashVerb()}.
-          Docker / WSL stay <span class="badge command">command</span> (copy CLI — no direct delete).
-        </p>
+        <div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:space-between">
+          <h3 style="margin:0">Findings · Clean</h3>
+          <div style="display:flex;flex-wrap:wrap;gap:6px">
+            ${pill("all", "All")}
+            ${pill("safe", `Safe (${safeCount})`)}
+            ${pill("check", "Check first")}
+            ${pill("command", "Commands")}
+          </div>
+        </div>
+        <div class="clean-bar" style="display:flex;flex-wrap:wrap;gap:8px;margin:12px 0;align-items:center">
+          <button class="btn primary" id="btn-clean-selected">Clean Selected → ${trashVerb()}</button>
+          <button class="btn small" id="btn-select-safe">Select all safe</button>
+          <button class="btn small ghost" id="btn-clear-sel">Clear selection</button>
+          <span class="hint">${fmtBytes(s.safeBytes)} marked safe · recoverable until you empty ${trashVerb()}</span>
+        </div>
+        <div class="list list-select" style="margin-top:8px">${
+          list.length
+            ? list.map((it) => itemRow(it, { selectable: true })).join("")
+            : `<div class="empty">No findings in this filter.</div>`
+        }</div>
       </div>
       <div class="card">
         <h3>Categories</h3>
@@ -544,28 +600,6 @@ function renderOverview() {
             ? `<button class="btn small" id="ingest-self" style="margin-top:8px">Add this machine to Fleet</button>`
             : ""
         }
-      </div>
-      <div class="card wide">
-        <div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:space-between">
-          <h3 style="margin:0">Findings · Clean</h3>
-          <div style="display:flex;flex-wrap:wrap;gap:6px">
-            ${pill("all", "All")}
-            ${pill("safe", `Safe (${safeCount})`)}
-            ${pill("check", "Check first")}
-            ${pill("command", "Commands")}
-          </div>
-        </div>
-        <div class="clean-bar" style="display:flex;flex-wrap:wrap;gap:8px;margin:12px 0;align-items:center">
-          <button class="btn primary" id="btn-clean-selected">Clean Selected → ${trashVerb()}</button>
-          <button class="btn small" id="btn-select-safe">Select all safe</button>
-          <button class="btn small ghost" id="btn-clear-sel">Clear selection</button>
-          <span class="hint">${fmtBytes(s.safeBytes)} marked safe · recoverable until you empty ${trashVerb()}</span>
-        </div>
-        <div class="list list-select" style="margin-top:8px">${
-          list.length
-            ? list.map((it) => itemRow(it, { selectable: true })).join("")
-            : `<div class="empty">No findings in this filter.</div>`
-        }</div>
       </div>
     </div>`;
 
@@ -1260,7 +1294,7 @@ async function toggleScanAutomation() {
     toast("Scan automation turned off");
     showNotify({
       title: "Scan automation off",
-      body: "Automatic re-scans are paused. You can still use Scan again anytime.",
+      body: "Automatic re-scans are paused. You can still use Smart Scan anytime.",
       actions: [{ label: "OK", primary: true }],
     });
     return;
@@ -1371,7 +1405,7 @@ async function runScan({ source = "manual" } = {}) {
     state.scanning = false;
     if (btn) {
       btn.disabled = false;
-      btn.textContent = "Scan workstation";
+      btn.textContent = "Smart Scan";
     }
     renderHero();
   }
