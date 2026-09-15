@@ -1,759 +1,104 @@
 [
-  {
-    "id": "xcode-deriveddata",
-    "name": "Xcode DerivedData",
-    "path": "~/Library/Developer/Xcode/DerivedData",
-    "category": "Developer",
-    "safety": "safe",
-    "note": "Build intermediates and indexes. Xcode rebuilds these on the next build."
-  },
-  {
-    "id": "xcode-archives",
-    "name": "Xcode Archives",
-    "path": "~/Library/Developer/Xcode/Archives",
-    "category": "Developer",
-    "safety": "check",
-    "note": "Archived app builds used for distribution. Keep if you still ship these."
-  },
-  {
-    "id": "xcode-iphonesupport",
-    "name": "iOS Device Support",
-    "path": "~/Library/Developer/Xcode/iOS DeviceSupport",
-    "category": "Developer",
-    "safety": "check",
-    "note": "Symbol files from devices you've debugged on. Re-downloaded when you reconnect a device."
-  },
-  {
-    "id": "xcode-watchsupport",
-    "name": "watchOS Device Support",
-    "path": "~/Library/Developer/Xcode/watchOS DeviceSupport",
-    "category": "Developer",
-    "safety": "check",
-    "note": "watchOS debug symbols. Re-downloaded when needed."
-  },
-  {
-    "id": "xcode-devicelogs",
-    "name": "Xcode Device Logs",
-    "path": "~/Library/Developer/Xcode/iOS Device Logs",
-    "category": "Developer",
-    "safety": "safe",
-    "note": "Old device connection logs. Safe to clear."
-  },
-  {
-    "id": "coresim-caches",
-    "name": "Simulator Caches",
-    "path": "~/Library/Developer/CoreSimulator/Caches",
-    "category": "Developer",
-    "safety": "safe",
-    "note": "Cached simulator runtimes. Regenerated automatically."
-  },
-  {
-    "id": "coresim-devices",
-    "name": "Simulator Devices",
-    "path": "~/Library/Developer/CoreSimulator/Devices",
-    "category": "Developer",
-    "safety": "command",
-    "command": "xcrun simctl delete unavailable",
-    "note": "Installed simulators and their data. Remove stale ones with simctl rather than deleting by hand."
-  },
-  {
-    "id": "swift-pm-cache",
-    "name": "Swift Package Manager",
-    "path": "~/Library/Caches/org.swift.swiftpm",
-    "category": "Developer",
-    "safety": "safe",
-    "note": "Swift PM download cache. Rebuilds on next resolve."
-  },
-  {
-    "id": "carthage-cache",
-    "name": "Carthage checkouts cache",
-    "path": "~/Library/Caches/org.carthage.CarthageKit",
-    "category": "Developer",
-    "safety": "safe",
-    "note": "Carthage binary cache. Re-downloaded on next carthage update."
-  },
-  {
-    "id": "jetbrains-caches",
-    "name": "JetBrains IDE caches",
-    "path": "~/Library/Caches/JetBrains",
-    "category": "Developer",
-    "safety": "safe",
-    "note": "IntelliJ, WebStorm, PyCharm caches. Rebuilt on next launch."
-  },
-  {
-    "id": "jetbrains-logs",
-    "name": "JetBrains logs",
-    "path": "~/Library/Logs/JetBrains",
-    "category": "Developer",
-    "safety": "safe",
-    "note": "IDE log files. Safe to clear."
-  },
-  {
-    "id": "android-emulator",
-    "name": "Android Emulator",
-    "path": "~/.android/avd",
-    "category": "Developer",
-    "safety": "check",
-    "note": "Android virtual device images. You'll need to recreate AVDs if removed."
-  },
-  {
-    "id": "flutter-pub",
-    "name": "Flutter pub cache",
-    "path": "~/.pub-cache",
-    "category": "Developer",
-    "safety": "check",
-    "note": "Dart/Flutter package cache. Re-downloaded on next flutter pub get."
-  },
-  {
-    "id": "unity-cache",
-    "name": "Unity cache",
-    "path": "~/Library/Unity/cache",
-    "category": "Developer",
-    "safety": "check",
-    "note": "Unity package cache. Projects may re-download packages."
-  },
-  {
-    "id": "godot-cache",
-    "name": "Godot editor cache",
-    "path": "~/Library/Application Support/Godot",
-    "category": "Developer",
-    "safety": "check",
-    "note": "Godot editor data. May reset editor preferences."
-  },
-  {
-    "id": "vscode-data",
-    "name": "VS Code extensions",
-    "path": "~/.vscode",
-    "category": "Developer",
-    "safety": "check",
-    "note": "VS Code extension downloads and settings. Removing forces re-download of extensions."
-  },
-  {
-    "id": "vscode-support",
-    "name": "VS Code app support",
-    "path": "~/Library/Application Support/Code",
-    "category": "Developer",
-    "safety": "check",
-    "note": "VS Code workspace state and caches. Safe-ish but you may lose recent window layout."
-  },
-  {
-    "id": "vscode-insiders",
-    "name": "VS Code Insiders",
-    "path": "~/Library/Application Support/Code - Insiders",
-    "category": "Developer",
-    "safety": "check",
-    "note": "VS Code Insiders state and caches."
-  },
-  {
-    "id": "vscode-caches",
-    "name": "VS Code caches",
-    "path": "~/Library/Caches/com.microsoft.VSCode",
-    "category": "Developer",
-    "safety": "safe",
-    "note": "VS Code download and extension caches."
-  },
-  {
-    "id": "windsurf-data",
-    "name": "Windsurf IDE",
-    "path": "~/Library/Application Support/Windsurf",
-    "category": "Developer",
-    "safety": "check",
-    "note": "Windsurf editor state and AI cache data."
-  },
-  {
-    "id": "npm-cache",
-    "name": "npm cache",
-    "path": "~/.npm",
-    "category": "Package Managers",
-    "safety": "safe",
-    "note": "npm's download cache. Re-populates on next install."
-  },
-  {
-    "id": "yarn-cache",
-    "name": "Yarn cache",
-    "path": "~/Library/Caches/Yarn",
-    "category": "Package Managers",
-    "safety": "safe",
-    "note": "Yarn's package cache. Rebuilds on next install."
-  },
-  {
-    "id": "pnpm-store",
-    "name": "pnpm store",
-    "path": "~/Library/pnpm-store",
-    "category": "Package Managers",
-    "safety": "check",
-    "note": "Content-addressable store shared across projects. Deleting forces re-download for every project."
-  },
-  {
-    "id": "bun-cache",
-    "name": "Bun cache",
-    "path": "~/.bun/install/cache",
-    "category": "Package Managers",
-    "safety": "safe",
-    "note": "Bun package cache. Rebuilds on next install."
-  },
-  {
-    "id": "deno-cache",
-    "name": "Deno cache",
-    "path": "~/Library/Caches/deno",
-    "category": "Package Managers",
-    "safety": "safe",
-    "note": "Deno module cache. Re-downloaded when needed."
-  },
-  {
-    "id": "homebrew-cache",
-    "name": "Homebrew downloads",
-    "path": "~/Library/Caches/Homebrew",
-    "category": "Package Managers",
-    "safety": "safe",
-    "note": "Downloaded bottles/formulae. Safe to clear; `brew cleanup` does the same."
-  },
-  {
-    "id": "pip-cache",
-    "name": "pip cache",
-    "path": "~/Library/Caches/pip",
-    "category": "Package Managers",
-    "safety": "safe",
-    "note": "pip wheel/download cache. Rebuilds on next install."
-  },
-  {
-    "id": "uv-cache",
-    "name": "uv cache",
-    "path": "~/.cache/uv",
-    "category": "Package Managers",
-    "safety": "safe",
-    "note": "uv (Python) package cache. Rebuilds automatically."
-  },
-  {
-    "id": "conda-pkgs",
-    "name": "Conda packages",
-    "path": "~/miniconda3/pkgs",
-    "category": "Package Managers",
-    "safety": "check",
-    "note": "Conda package cache. May also exist at ~/anaconda3/pkgs."
-  },
-  {
-    "id": "poetry-cache",
-    "name": "Poetry cache",
-    "path": "~/Library/Caches/pypoetry",
-    "category": "Package Managers",
-    "safety": "safe",
-    "note": "Poetry virtualenv and wheel cache."
-  },
-  {
-    "id": "pipenv-cache",
-    "name": "pipenv cache",
-    "path": "~/.local/share/virtualenvs",
-    "category": "Package Managers",
-    "safety": "check",
-    "note": "pipenv virtual environments. Recreate with pipenv install."
-  },
-  {
-    "id": "cargo-cache",
-    "name": "Cargo registry cache",
-    "path": "~/.cargo/registry/cache",
-    "category": "Package Managers",
-    "safety": "safe",
-    "note": "Downloaded crate archives. Re-downloaded when needed."
-  },
-  {
-    "id": "go-build",
-    "name": "Go build cache",
-    "path": "~/Library/Caches/go-build",
-    "category": "Package Managers",
-    "safety": "safe",
-    "note": "Go compiler build cache. Rebuilds on next build."
-  },
-  {
-    "id": "go-modules",
-    "name": "Go module cache",
-    "path": "~/go/pkg/mod",
-    "category": "Package Managers",
-    "safety": "check",
-    "note": "Downloaded Go modules shared across projects. Re-downloaded on next build."
-  },
-  {
-    "id": "gradle-caches",
-    "name": "Gradle caches",
-    "path": "~/.gradle/caches",
-    "category": "Package Managers",
-    "safety": "safe",
-    "note": "Gradle dependency and build cache. Rebuilds on next build."
-  },
-  {
-    "id": "maven-repo",
-    "name": "Maven repository",
-    "path": "~/.m2/repository",
-    "category": "Package Managers",
-    "safety": "check",
-    "note": "Local Maven artifacts shared across projects. Re-downloaded when needed."
-  },
-  {
-    "id": "sbt-cache",
-    "name": "SBT cache",
-    "path": "~/.sbt",
-    "category": "Package Managers",
-    "safety": "check",
-    "note": "Scala SBT boot and ivy cache."
-  },
-  {
-    "id": "bazel-cache",
-    "name": "Bazel cache",
-    "path": "~/.cache/bazel",
-    "category": "Package Managers",
-    "safety": "safe",
-    "note": "Bazel build output cache. Rebuilt on next build."
-  },
-  {
-    "id": "cocoapods-cache",
-    "name": "CocoaPods cache",
-    "path": "~/Library/Caches/CocoaPods",
-    "category": "Package Managers",
-    "safety": "safe",
-    "note": "CocoaPods download cache. Rebuilds on next `pod install`."
-  },
-  {
-    "id": "composer-cache",
-    "name": "Composer cache",
-    "path": "~/Library/Caches/composer",
-    "category": "Package Managers",
-    "safety": "safe",
-    "note": "PHP Composer package cache."
-  },
-  {
-    "id": "gem-cache",
-    "name": "Ruby gems cache",
-    "path": "~/Library/Caches/gem",
-    "category": "Package Managers",
-    "safety": "safe",
-    "note": "Ruby gem download cache."
-  },
-  {
-    "id": "nvm-cache",
-    "name": "nvm versions",
-    "path": "~/.nvm",
-    "category": "Package Managers",
-    "safety": "check",
-    "note": "Node versions installed via nvm. Reinstall with nvm install."
-  },
-  {
-    "id": "pyenv-versions",
-    "name": "pyenv versions",
-    "path": "~/.pyenv/versions",
-    "category": "Package Managers",
-    "safety": "check",
-    "note": "Python versions installed via pyenv."
-  },
-  {
-    "id": "mise-data",
-    "name": "mise tool cache",
-    "path": "~/.local/share/mise",
-    "category": "Package Managers",
-    "safety": "check",
-    "note": "mise/asdf runtime versions and shims."
-  },
-  {
-    "id": "terraform-plugins",
-    "name": "Terraform plugins",
-    "path": "~/.terraform.d/plugin-cache",
-    "category": "Package Managers",
-    "safety": "safe",
-    "note": "Terraform provider plugin cache."
-  },
-  {
-    "id": "aws-cli-cache",
-    "name": "AWS CLI cache",
-    "path": "~/.aws/cli/cache",
-    "category": "Package Managers",
-    "safety": "safe",
-    "note": "AWS CLI autocomplete and cache data."
-  },
-  {
-    "id": "prisma-engines",
-    "name": "Prisma engines",
-    "path": "~/.cache/prisma",
-    "category": "Package Managers",
-    "safety": "safe",
-    "note": "Prisma query engine binaries. Re-downloaded on next generate."
-  },
-  {
-    "id": "puppeteer",
-    "name": "Puppeteer browsers",
-    "path": "~/.cache/puppeteer",
-    "category": "Browser Automation",
-    "safety": "safe",
-    "note": "Chromium downloaded by Puppeteer. Re-downloads when a script runs again."
-  },
-  {
-    "id": "playwright",
-    "name": "Playwright browsers",
-    "path": "~/Library/Caches/ms-playwright",
-    "category": "Browser Automation",
-    "safety": "safe",
-    "note": "Browsers downloaded by Playwright. Restored with `npx playwright install`."
-  },
-  {
-    "id": "selenium",
-    "name": "Selenium drivers",
-    "path": "~/.cache/selenium",
-    "category": "Browser Automation",
-    "safety": "safe",
-    "note": "Cached browser drivers. Re-downloaded when needed."
-  },
-  {
-    "id": "electron-cache",
-    "name": "Electron downloads",
-    "path": "~/Library/Caches/electron",
-    "category": "Browser Automation",
-    "safety": "check",
-    "note": "Shared Electron cache used by many apps. Clearing may slow several apps on next launch."
-  },
-  {
-    "id": "docker-desktop",
-    "name": "Docker Desktop data",
-    "path": "~/Library/Containers/com.docker.docker",
-    "category": "Containers & K8s",
-    "safety": "command",
-    "command": "docker system prune -a --volumes",
-    "note": "Docker's VM disk (images, containers, volumes). Never delete this folder by hand \u2014 reclaim space with prune, or reset via Docker Desktop \u2192 Troubleshoot."
-  },
-  {
-    "id": "minikube",
-    "name": "Minikube cluster",
-    "path": "~/.minikube",
-    "category": "Containers & K8s",
-    "safety": "command",
-    "command": "minikube delete --all --purge",
-    "note": "Local Kubernetes cluster VM and state. Remove it with minikube, not by deleting the folder."
-  },
-  {
-    "id": "colima",
-    "name": "Colima VM",
-    "path": "~/.colima",
-    "category": "Containers & K8s",
-    "safety": "command",
-    "command": "colima delete",
-    "note": "Colima container VM and disk. Remove it with colima to avoid orphaned state."
-  },
-  {
-    "id": "rancher-desktop",
-    "name": "Rancher Desktop",
-    "path": "~/Library/Application Support/rancher-desktop",
-    "category": "Containers & K8s",
-    "safety": "check",
-    "note": "Rancher Desktop VM and Kubernetes state."
-  },
-  {
-    "id": "huggingface",
-    "name": "Hugging Face models",
-    "path": "~/.cache/huggingface",
-    "category": "AI Tools",
-    "safety": "check",
-    "note": "Downloaded model weights and datasets. Large; re-downloaded on next use."
-  },
-  {
-    "id": "ollama-models",
-    "name": "Ollama models",
-    "path": "~/.ollama/models",
-    "category": "AI Tools",
-    "safety": "command",
-    "command": "ollama list",
-    "note": "Local LLM weights (often tens of GB). Remove specific models with `ollama rm <model>`."
-  },
-  {
-    "id": "claude-desktop",
-    "name": "Claude Desktop data",
-    "path": "~/Library/Application Support/Claude",
-    "category": "AI Tools",
-    "safety": "check",
-    "note": "Claude Desktop conversation cache and app data."
-  },
-  {
-    "id": "chatgpt-desktop",
-    "name": "ChatGPT Desktop",
-    "path": "~/Library/Application Support/com.openai.chat",
-    "category": "AI Tools",
-    "safety": "check",
-    "note": "ChatGPT macOS app cache and state."
-  },
-  {
-    "id": "gemini-antigravity",
-    "name": "Antigravity IDE data",
-    "path": "~/.gemini/antigravity",
-    "category": "AI Tools",
-    "safety": "check",
-    "note": "Antigravity IDE working data. Large; only remove if you no longer use that IDE."
-  },
-  {
-    "id": "gemini-antigravity-backup",
-    "name": "Antigravity backups",
-    "path": "~/.gemini/antigravity-backup",
-    "category": "AI Tools",
-    "safety": "safe",
-    "note": "Backup snapshots from Antigravity IDE. Safe to clear if you don't need old snapshots."
-  },
-  {
-    "id": "lmstudio",
-    "name": "LM Studio models",
-    "path": "~/.cache/lm-studio",
-    "category": "AI Tools",
-    "safety": "check",
-    "note": "LM Studio model cache. Re-downloaded on next use."
-  },
-  {
-    "id": "zoom-cache",
-    "name": "Zoom",
-    "path": "~/Library/Caches/us.zoom.xos",
-    "category": "Apps",
-    "safety": "safe",
-    "note": "Temporary files stored by Zoom. Safe to delete \u2014 Zoom recreates them automatically."
-  },
-  {
-    "id": "zoom-logs",
-    "name": "Zoom logs",
-    "path": "~/Library/Logs/zoom.us",
-    "category": "Apps",
-    "safety": "safe",
-    "note": "Zoom log files. Safe to clear."
-  },
-  {
-    "id": "discord-cache",
-    "name": "Discord",
-    "path": "~/Library/Caches/com.hnc.Discord",
-    "category": "Apps",
-    "safety": "safe",
-    "note": "Temporary files stored by Discord. Safe to delete \u2014 Discord rebuilds them when you next open it."
-  },
-  {
-    "id": "discord-gpu",
-    "name": "Discord GPU cache",
-    "path": "~/Library/Application Support/discord/GPUCache",
-    "category": "Apps",
-    "safety": "check",
-    "note": "Discord GPU cache under Application Support. Usually regenerable, but review \u2014 clearing can briefly affect performance until rebuilt."
-  },
-  {
-    "id": "discord-code-cache",
-    "name": "Discord code cache",
-    "path": "~/Library/Application Support/discord/Code Cache",
-    "category": "Apps",
-    "safety": "check",
-    "note": "Discord Code Cache under Application Support. Usually safe, but not a one-click green clean \u2014 confirm you are not removing profile data."
-  },
-  {
-    "id": "slack-cache",
-    "name": "Slack",
-    "path": "~/Library/Caches/com.tinyspeck.slackmacgap",
-    "category": "Apps",
-    "safety": "safe",
-    "note": "Slack cache data. Rebuilt when Slack next launches."
-  },
-  {
-    "id": "teams-cache",
-    "name": "Microsoft Teams",
-    "path": "~/Library/Caches/com.microsoft.teams",
-    "category": "Apps",
-    "safety": "safe",
-    "note": "Teams cache. Safe to delete \u2014 Teams re-downloads as needed."
-  },
-  {
-    "id": "teams2-cache",
-    "name": "Microsoft Teams (new)",
-    "path": "~/Library/Caches/com.microsoft.teams2",
-    "category": "Apps",
-    "safety": "safe",
-    "note": "New Teams app cache. Safe to clear."
-  },
-  {
-    "id": "spotify-cache",
-    "name": "Spotify",
-    "path": "~/Library/Caches/com.spotify.client",
-    "category": "Apps",
-    "safety": "check",
-    "note": "May include offline downloads. Clearing can force re-download and change Spotify offline behavior."
-  },
-  {
-    "id": "perplexity-cache",
-    "name": "Perplexity",
-    "path": "~/Library/Caches/com.perplexity.ai",
-    "category": "Apps",
-    "safety": "safe",
-    "note": "Temporary files used by the Perplexity app. Regenerated when it checks for updates."
-  },
-  {
-    "id": "perplexity-cache-alt",
-    "name": "Perplexity updater",
-    "path": "~/Library/Caches/com.perplexity.app",
-    "category": "Apps",
-    "safety": "safe",
-    "note": "Perplexity desktop updater cache. Safe to clear."
-  },
-  {
-    "id": "notion-cache",
-    "name": "Notion",
-    "path": "~/Library/Caches/notion.id",
-    "category": "Apps",
-    "safety": "safe",
-    "note": "Notion app cache. Syncs again from the cloud on next open."
-  },
-  {
-    "id": "figma-cache",
-    "name": "Figma",
-    "path": "~/Library/Caches/com.figma.Desktop",
-    "category": "Apps",
-    "safety": "safe",
-    "note": "Figma desktop cache. Rebuilt when you open files."
-  },
-  {
-    "id": "telegram-cache",
-    "name": "Telegram",
-    "path": "~/Library/Caches/ru.keepcoder.Telegram",
-    "category": "Apps",
-    "safety": "safe",
-    "note": "Telegram media cache. Re-downloads media when viewed."
-  },
-  {
-    "id": "whatsapp-cache",
-    "name": "WhatsApp",
-    "path": "~/Library/Caches/net.whatsapp.WhatsApp",
-    "category": "Apps",
-    "safety": "safe",
-    "note": "WhatsApp cache. Media re-downloads from chats."
-  },
-  {
-    "id": "steam-cache",
-    "name": "Steam",
-    "path": "~/Library/Caches/com.valvesoftware.steam",
-    "category": "Apps",
-    "safety": "check",
-    "note": "Steam shader/download cache. Games may re-verify; not always free to clear."
-  },
-  {
-    "id": "epic-cache",
-    "name": "Epic Games",
-    "path": "~/Library/Caches/com.epicgames.EpicGamesLauncher",
-    "category": "Apps",
-    "safety": "safe",
-    "note": "Epic launcher cache. Safe to clear."
-  },
-  {
-    "id": "arc-cache",
-    "name": "Arc",
-    "path": "~/Library/Caches/company.thebrowser.Browser",
-    "category": "Apps",
-    "safety": "safe",
-    "note": "Arc browser cache. Pages reload on next visit."
-  },
-  {
-    "id": "1password-cache",
-    "name": "1Password",
-    "path": "~/Library/Caches/com.1password.1password",
-    "category": "Apps",
-    "safety": "check",
-    "note": "1Password cache. Vaults stay in the cloud, but clearing may sign you out or slow unlock \u2014 review first."
-  },
-  {
-    "id": "dropbox-cache",
-    "name": "Dropbox",
-    "path": "~/Library/Caches/com.getdropbox.dropbox",
-    "category": "Apps",
-    "safety": "check",
-    "note": "Dropbox sync cache. Clearing can trigger large re-downloads and temporary sync issues."
-  },
-  {
-    "id": "google-drive-cache",
-    "name": "Google Drive",
-    "path": "~/Library/Caches/com.google.drivefs",
-    "category": "Apps",
-    "safety": "check",
-    "note": "Google Drive cache. Clearing can force re-sync and affect offline files."
-  },
-  {
-    "id": "location-analytics",
-    "name": "Location Analytics",
-    "path": "~/Library/Caches/com.apple.geod",
-    "category": "Apps",
-    "safety": "check",
-    "note": "Apple location analytics cache. System may rebuild; prefer review over bulk delete."
-  },
-  {
-    "id": "apple-mediaanalysis",
-    "name": "Apple Media Analysis",
-    "path": "~/Library/Caches/com.apple.MediaAnalysis",
-    "category": "Apps",
-    "safety": "check",
-    "note": "Photos/Spotlight media analysis cache. Rebuilds in background; can temporarily affect search."
-  },
-  {
-    "id": "user-caches",
-    "name": "App caches",
-    "path": "~/Library/Caches",
-    "category": "System",
-    "safety": "check",
-    "note": "Shared cache folder for many apps. Mostly safe, but review before clearing everything."
-  },
-  {
-    "id": "user-logs",
-    "name": "App logs",
-    "path": "~/Library/Logs",
-    "category": "System",
-    "safety": "check",
-    "note": "Entire ~/Library/Logs tree. Mostly logs, but review before wiping everything."
-  },
-  {
-    "id": "chrome-cache",
-    "name": "Chrome cache",
-    "path": "~/Library/Caches/Google/Chrome",
-    "category": "System",
-    "safety": "safe",
-    "note": "HTTP cache only \u2014 not profiles, passwords, or extensions. Those live in Application Support/Google (Check first)."
-  },
-  {
-    "id": "firefox-cache",
-    "name": "Firefox cache",
-    "path": "~/Library/Caches/Firefox",
-    "category": "System",
-    "safety": "safe",
-    "note": "Firefox browser cache."
-  },
-  {
-    "id": "brave-cache",
-    "name": "Brave cache",
-    "path": "~/Library/Caches/BraveSoftware",
-    "category": "System",
-    "safety": "safe",
-    "note": "Brave browser cache."
-  },
-  {
-    "id": "google-chrome-support",
-    "name": "Google app data",
-    "path": "~/Library/Application Support/Google",
-    "category": "System",
-    "safety": "check",
-    "note": "WARNING: Chrome/Drive profile data under Library/Application Support. Cleaning may sign you out, remove extensions, or delete offline files / profiles."
-  },
-  {
-    "id": "mail-attachments",
-    "name": "Mail attachments cache",
-    "path": "~/Library/Mail/V10",
-    "category": "System",
-    "safety": "check",
-    "note": "Mail.app downloaded attachments and cache. May re-download from server."
-  },
-  {
-    "id": "ios-backups",
-    "name": "iOS device backups",
-    "path": "~/Library/Application Support/MobileSync/Backup",
-    "category": "System",
-    "safety": "check",
-    "note": "iPhone/iPad backups. Only remove backups you no longer need."
-  },
-  {
-    "id": "trash",
-    "name": "Trash",
-    "path": "~/.Trash",
-    "category": "System",
-    "safety": "never",
-    "note": "Use the Trash section to empty. Do not treat ~/.Trash as a normal cache."
-  }
+  { "id": "xcode-deriveddata", "name": "Xcode DerivedData", "path": "~/Library/Developer/Xcode/DerivedData", "category": "Developer", "safety": "safe", "note": "Build intermediates and indexes. Xcode rebuilds these on the next build." },
+  { "id": "xcode-archives", "name": "Xcode Archives", "path": "~/Library/Developer/Xcode/Archives", "category": "Developer", "safety": "check", "note": "Archived app builds used for distribution. Keep if you still ship these." },
+  { "id": "xcode-iphonesupport", "name": "iOS Device Support", "path": "~/Library/Developer/Xcode/iOS DeviceSupport", "category": "Developer", "safety": "check", "note": "Symbol files from devices you've debugged on. Re-downloaded when you reconnect a device." },
+  { "id": "xcode-watchsupport", "name": "watchOS Device Support", "path": "~/Library/Developer/Xcode/watchOS DeviceSupport", "category": "Developer", "safety": "check", "note": "watchOS debug symbols. Re-downloaded when needed." },
+  { "id": "xcode-devicelogs", "name": "Xcode Device Logs", "path": "~/Library/Developer/Xcode/iOS Device Logs", "category": "Developer", "safety": "safe", "note": "Old device connection logs. Safe to clear." },
+  { "id": "coresim-caches", "name": "Simulator Caches", "path": "~/Library/Developer/CoreSimulator/Caches", "category": "Developer", "safety": "safe", "note": "Cached simulator runtimes. Regenerated automatically." },
+  { "id": "coresim-devices", "name": "Simulator Devices", "path": "~/Library/Developer/CoreSimulator/Devices", "category": "Developer", "safety": "command", "command": "xcrun simctl delete unavailable", "note": "Installed simulators and their data. Remove stale ones with simctl rather than deleting by hand." },
+  { "id": "swift-pm-cache", "name": "Swift Package Manager", "path": "~/Library/Caches/org.swift.swiftpm", "category": "Developer", "safety": "safe", "note": "Swift PM download cache. Rebuilds on next resolve." },
+  { "id": "carthage-cache", "name": "Carthage checkouts cache", "path": "~/Library/Caches/org.carthage.CarthageKit", "category": "Developer", "safety": "safe", "note": "Carthage binary cache. Re-downloaded on next carthage update." },
+  { "id": "jetbrains-caches", "name": "JetBrains IDE caches", "path": "~/Library/Caches/JetBrains", "category": "Developer", "safety": "safe", "note": "IntelliJ, WebStorm, PyCharm caches. Rebuilt on next launch." },
+  { "id": "jetbrains-logs", "name": "JetBrains logs", "path": "~/Library/Logs/JetBrains", "category": "Developer", "safety": "safe", "note": "IDE log files. Safe to clear." },
+  { "id": "android-emulator", "name": "Android Emulator", "path": "~/.android/avd", "category": "Developer", "safety": "check", "note": "Android virtual device images. You'll need to recreate AVDs if removed." },
+  { "id": "flutter-pub", "name": "Flutter pub cache", "path": "~/.pub-cache", "category": "Developer", "safety": "check", "note": "Dart/Flutter package cache. Re-downloaded on next flutter pub get." },
+  { "id": "unity-cache", "name": "Unity cache", "path": "~/Library/Unity/cache", "category": "Developer", "safety": "safe", "note": "Unity package manager cache. Rebuilt on next open." },
+  { "id": "godot-cache", "name": "Godot editor cache", "path": "~/Library/Application Support/Godot", "category": "Developer", "safety": "check", "note": "Godot editor data. May reset editor preferences." },
+  { "id": "cursor-data", "name": "Cursor IDE data", "path": "~/Library/Application Support/Cursor", "category": "Developer", "safety": "check", "note": "Cursor editor state, extensions, and cached AI/index data. Large but tied to your setup — only clear if you accept re-indexing." },
+  { "id": "vscode-data", "name": "VS Code extensions", "path": "~/.vscode", "category": "Developer", "safety": "check", "note": "VS Code extension downloads and settings. Removing forces re-download of extensions." },
+  { "id": "vscode-support", "name": "VS Code app support", "path": "~/Library/Application Support/Code", "category": "Developer", "safety": "check", "note": "VS Code workspace state and caches. Safe-ish but you may lose recent window layout." },
+  { "id": "vscode-insiders", "name": "VS Code Insiders", "path": "~/Library/Application Support/Code - Insiders", "category": "Developer", "safety": "check", "note": "VS Code Insiders state and caches." },
+  { "id": "vscode-caches", "name": "VS Code caches", "path": "~/Library/Caches/com.microsoft.VSCode", "category": "Developer", "safety": "safe", "note": "VS Code download and extension caches." },
+  { "id": "windsurf-data", "name": "Windsurf IDE", "path": "~/Library/Application Support/Windsurf", "category": "Developer", "safety": "check", "note": "Windsurf editor state and AI cache data." },
+
+  { "id": "npm-cache", "name": "npm cache", "path": "~/.npm", "category": "Package Managers", "safety": "safe", "note": "npm's download cache. Re-populates on next install." },
+  { "id": "yarn-cache", "name": "Yarn cache", "path": "~/Library/Caches/Yarn", "category": "Package Managers", "safety": "safe", "note": "Yarn's package cache. Rebuilds on next install." },
+  { "id": "pnpm-store", "name": "pnpm store", "path": "~/Library/pnpm-store", "category": "Package Managers", "safety": "check", "note": "Content-addressable store shared across projects. Deleting forces re-download for every project." },
+  { "id": "bun-cache", "name": "Bun cache", "path": "~/.bun/install/cache", "category": "Package Managers", "safety": "safe", "note": "Bun package cache. Rebuilds on next install." },
+  { "id": "deno-cache", "name": "Deno cache", "path": "~/Library/Caches/deno", "category": "Package Managers", "safety": "safe", "note": "Deno module cache. Re-downloaded when needed." },
+  { "id": "homebrew-cache", "name": "Homebrew downloads", "path": "~/Library/Caches/Homebrew", "category": "Package Managers", "safety": "safe", "note": "Downloaded bottles/formulae. Safe to clear; `brew cleanup` does the same." },
+  { "id": "pip-cache", "name": "pip cache", "path": "~/Library/Caches/pip", "category": "Package Managers", "safety": "safe", "note": "pip wheel/download cache. Rebuilds on next install." },
+  { "id": "uv-cache", "name": "uv cache", "path": "~/.cache/uv", "category": "Package Managers", "safety": "safe", "note": "uv (Python) package cache. Rebuilds automatically." },
+  { "id": "conda-pkgs", "name": "Conda packages", "path": "~/miniconda3/pkgs", "category": "Package Managers", "safety": "check", "note": "Conda package cache. May also exist at ~/anaconda3/pkgs." },
+  { "id": "poetry-cache", "name": "Poetry cache", "path": "~/Library/Caches/pypoetry", "category": "Package Managers", "safety": "safe", "note": "Poetry virtualenv and wheel cache." },
+  { "id": "pipenv-cache", "name": "pipenv cache", "path": "~/.local/share/virtualenvs", "category": "Package Managers", "safety": "check", "note": "pipenv virtual environments. Recreate with pipenv install." },
+  { "id": "cargo-cache", "name": "Cargo registry cache", "path": "~/.cargo/registry/cache", "category": "Package Managers", "safety": "safe", "note": "Downloaded crate archives. Re-downloaded when needed." },
+  { "id": "go-build", "name": "Go build cache", "path": "~/Library/Caches/go-build", "category": "Package Managers", "safety": "safe", "note": "Go compiler build cache. Rebuilds on next build." },
+  { "id": "go-modules", "name": "Go module cache", "path": "~/go/pkg/mod", "category": "Package Managers", "safety": "check", "note": "Downloaded Go modules shared across projects. Re-downloaded on next build." },
+  { "id": "gradle-caches", "name": "Gradle caches", "path": "~/.gradle/caches", "category": "Package Managers", "safety": "safe", "note": "Gradle dependency and build cache. Rebuilds on next build." },
+  { "id": "maven-repo", "name": "Maven repository", "path": "~/.m2/repository", "category": "Package Managers", "safety": "check", "note": "Local Maven artifacts shared across projects. Re-downloaded when needed." },
+  { "id": "sbt-cache", "name": "SBT cache", "path": "~/.sbt", "category": "Package Managers", "safety": "check", "note": "Scala SBT boot and ivy cache." },
+  { "id": "bazel-cache", "name": "Bazel cache", "path": "~/.cache/bazel", "category": "Package Managers", "safety": "safe", "note": "Bazel build output cache. Rebuilt on next build." },
+  { "id": "cocoapods-cache", "name": "CocoaPods cache", "path": "~/Library/Caches/CocoaPods", "category": "Package Managers", "safety": "safe", "note": "CocoaPods download cache. Rebuilds on next `pod install`." },
+  { "id": "composer-cache", "name": "Composer cache", "path": "~/Library/Caches/composer", "category": "Package Managers", "safety": "safe", "note": "PHP Composer package cache." },
+  { "id": "gem-cache", "name": "Ruby gems cache", "path": "~/Library/Caches/gem", "category": "Package Managers", "safety": "safe", "note": "Ruby gem download cache." },
+  { "id": "nvm-cache", "name": "nvm versions", "path": "~/.nvm", "category": "Package Managers", "safety": "check", "note": "Node versions installed via nvm. Reinstall with nvm install." },
+  { "id": "pyenv-versions", "name": "pyenv versions", "path": "~/.pyenv/versions", "category": "Package Managers", "safety": "check", "note": "Python versions installed via pyenv." },
+  { "id": "mise-data", "name": "mise tool cache", "path": "~/.local/share/mise", "category": "Package Managers", "safety": "check", "note": "mise/asdf runtime versions and shims." },
+  { "id": "terraform-plugins", "name": "Terraform plugins", "path": "~/.terraform.d/plugin-cache", "category": "Package Managers", "safety": "safe", "note": "Terraform provider plugin cache." },
+  { "id": "aws-cli-cache", "name": "AWS CLI cache", "path": "~/.aws/cli/cache", "category": "Package Managers", "safety": "safe", "note": "AWS CLI autocomplete and cache data." },
+  { "id": "prisma-engines", "name": "Prisma engines", "path": "~/.cache/prisma", "category": "Package Managers", "safety": "safe", "note": "Prisma query engine binaries. Re-downloaded on next generate." },
+
+  { "id": "puppeteer", "name": "Puppeteer browsers", "path": "~/.cache/puppeteer", "category": "Browser Automation", "safety": "safe", "note": "Chromium downloaded by Puppeteer. Re-downloads when a script runs again." },
+  { "id": "playwright", "name": "Playwright browsers", "path": "~/Library/Caches/ms-playwright", "category": "Browser Automation", "safety": "safe", "note": "Browsers downloaded by Playwright. Restored with `npx playwright install`." },
+  { "id": "selenium", "name": "Selenium drivers", "path": "~/.cache/selenium", "category": "Browser Automation", "safety": "safe", "note": "Cached browser drivers. Re-downloaded when needed." },
+  { "id": "electron-cache", "name": "Electron downloads", "path": "~/Library/Caches/electron", "category": "Browser Automation", "safety": "safe", "note": "Electron binary cache used by many desktop apps." },
+
+  { "id": "docker-desktop", "name": "Docker Desktop data", "path": "~/Library/Containers/com.docker.docker", "category": "Containers & K8s", "safety": "command", "command": "docker system prune -a --volumes", "note": "Docker's VM disk (images, containers, volumes). Never delete this folder by hand — reclaim space with prune, or reset via Docker Desktop → Troubleshoot." },
+  { "id": "orbstack-data", "name": "OrbStack machines & containers", "path": "~/.orbstack", "category": "Containers & K8s", "safety": "check", "note": "OrbStack VM disk, container images, Linux machine data, and volumes. Reclaim space with `orbstack stop` or reset via OrbStack UI." },
+  { "id": "orbstack-group", "name": "OrbStack container images & VMs", "path": "~/Library/Group Containers/HUAQ24HBR6.dev.orbstack", "category": "Containers & K8s", "safety": "check", "note": "OrbStack main container disk images, Docker volumes, and virtual machine data." },
+  { "id": "orbstack-support", "name": "OrbStack app support", "path": "~/Library/Application Support/OrbStack", "category": "Containers & K8s", "safety": "check", "note": "OrbStack configuration and application state." },
+  { "id": "minikube", "name": "Minikube cluster", "path": "~/.minikube", "category": "Containers & K8s", "safety": "command", "command": "minikube delete --all --purge", "note": "Local Kubernetes cluster VM and state. Remove it with minikube, not by deleting the folder." },
+  { "id": "colima", "name": "Colima VM", "path": "~/.colima", "category": "Containers & K8s", "safety": "command", "command": "colima delete", "note": "Colima container VM and disk. Remove it with colima to avoid orphaned state." },
+  { "id": "rancher-desktop", "name": "Rancher Desktop", "path": "~/Library/Application Support/rancher-desktop", "category": "Containers & K8s", "safety": "check", "note": "Rancher Desktop VM and Kubernetes state." },
+
+  { "id": "huggingface", "name": "Hugging Face models", "path": "~/.cache/huggingface", "category": "AI Tools", "safety": "check", "note": "Downloaded model weights and datasets. Large; re-downloaded on next use." },
+  { "id": "ollama-models", "name": "Ollama models", "path": "~/.ollama/models", "category": "AI Tools", "safety": "command", "command": "ollama list", "note": "Local LLM weights (often tens of GB). Remove specific models with `ollama rm <model>`." },
+  { "id": "claude-desktop", "name": "Claude Desktop data", "path": "~/Library/Application Support/Claude", "category": "AI Tools", "safety": "check", "note": "Claude Desktop conversation cache and app data." },
+  { "id": "chatgpt-desktop", "name": "ChatGPT Desktop", "path": "~/Library/Application Support/com.openai.chat", "category": "AI Tools", "safety": "check", "note": "ChatGPT macOS app cache and state." },
+  { "id": "gemini-antigravity", "name": "Antigravity IDE data", "path": "~/.gemini/antigravity", "category": "AI Tools", "safety": "check", "note": "Antigravity IDE working data. Large; only remove if you no longer use that IDE." },
+  { "id": "gemini-antigravity-backup", "name": "Antigravity backups", "path": "~/.gemini/antigravity-backup", "category": "AI Tools", "safety": "safe", "note": "Backup snapshots from Antigravity IDE. Safe to clear if you don't need old snapshots." },
+  { "id": "lmstudio", "name": "LM Studio models", "path": "~/.cache/lm-studio", "category": "AI Tools", "safety": "check", "note": "LM Studio model cache. Re-downloaded on next use." },
+
+  { "id": "zoom-cache", "name": "Zoom", "path": "~/Library/Caches/us.zoom.xos", "category": "Apps", "safety": "safe", "note": "Temporary files stored by Zoom. Safe to delete — Zoom recreates them automatically." },
+  { "id": "zoom-logs", "name": "Zoom logs", "path": "~/Library/Logs/zoom.us", "category": "Apps", "safety": "safe", "note": "Zoom log files. Safe to clear." },
+  { "id": "discord-cache", "name": "Discord", "path": "~/Library/Caches/com.hnc.Discord", "category": "Apps", "safety": "safe", "note": "Temporary files stored by Discord. Safe to delete — Discord rebuilds them when you next open it." },
+  { "id": "discord-gpu", "name": "Discord GPU cache", "path": "~/Library/Application Support/discord/GPUCache", "category": "Apps", "safety": "safe", "note": "Discord GPU shader cache. Regenerated on next launch." },
+  { "id": "discord-code-cache", "name": "Discord code cache", "path": "~/Library/Application Support/discord/Code Cache", "category": "Apps", "safety": "safe", "note": "Discord renderer cache. Safe to clear." },
+  { "id": "slack-cache", "name": "Slack", "path": "~/Library/Caches/com.tinyspeck.slackmacgap", "category": "Apps", "safety": "safe", "note": "Slack cache data. Rebuilt when Slack next launches." },
+  { "id": "teams-cache", "name": "Microsoft Teams", "path": "~/Library/Caches/com.microsoft.teams", "category": "Apps", "safety": "safe", "note": "Teams cache. Safe to delete — Teams re-downloads as needed." },
+  { "id": "teams2-cache", "name": "Microsoft Teams (new)", "path": "~/Library/Caches/com.microsoft.teams2", "category": "Apps", "safety": "safe", "note": "New Teams app cache. Safe to clear." },
+  { "id": "spotify-cache", "name": "Spotify", "path": "~/Library/Caches/com.spotify.client", "category": "Apps", "safety": "safe", "note": "Spotify offline cache and temp files. Streaming cache rebuilds on play." },
+  { "id": "perplexity-cache", "name": "Perplexity", "path": "~/Library/Caches/com.perplexity.ai", "category": "Apps", "safety": "safe", "note": "Temporary files used by the Perplexity app. Regenerated when it checks for updates." },
+  { "id": "perplexity-cache-alt", "name": "Perplexity updater", "path": "~/Library/Caches/com.perplexity.app", "category": "Apps", "safety": "safe", "note": "Perplexity desktop updater cache. Safe to clear." },
+  { "id": "notion-cache", "name": "Notion", "path": "~/Library/Caches/notion.id", "category": "Apps", "safety": "safe", "note": "Notion app cache. Syncs again from the cloud on next open." },
+  { "id": "figma-cache", "name": "Figma", "path": "~/Library/Caches/com.figma.Desktop", "category": "Apps", "safety": "safe", "note": "Figma desktop cache. Rebuilt when you open files." },
+  { "id": "telegram-cache", "name": "Telegram", "path": "~/Library/Caches/ru.keepcoder.Telegram", "category": "Apps", "safety": "safe", "note": "Telegram media cache. Re-downloads media when viewed." },
+  { "id": "whatsapp-cache", "name": "WhatsApp", "path": "~/Library/Caches/net.whatsapp.WhatsApp", "category": "Apps", "safety": "safe", "note": "WhatsApp cache. Media re-downloads from chats." },
+  { "id": "steam-cache", "name": "Steam", "path": "~/Library/Caches/com.valvesoftware.steam", "category": "Apps", "safety": "safe", "note": "Steam download and shader cache. Games re-verify if needed." },
+  { "id": "epic-cache", "name": "Epic Games", "path": "~/Library/Caches/com.epicgames.EpicGamesLauncher", "category": "Apps", "safety": "safe", "note": "Epic launcher cache. Safe to clear." },
+  { "id": "arc-cache", "name": "Arc", "path": "~/Library/Caches/company.thebrowser.Browser", "category": "Apps", "safety": "safe", "note": "Arc browser cache. Pages reload on next visit." },
+  { "id": "1password-cache", "name": "1Password", "path": "~/Library/Caches/com.1password.1password", "category": "Apps", "safety": "safe", "note": "1Password cache. Does not remove vaults or passwords." },
+  { "id": "dropbox-cache", "name": "Dropbox", "path": "~/Library/Caches/com.getdropbox.dropbox", "category": "Apps", "safety": "safe", "note": "Dropbox sync cache. Files re-sync from the cloud." },
+  { "id": "google-drive-cache", "name": "Google Drive", "path": "~/Library/Caches/com.google.drivefs", "category": "Apps", "safety": "safe", "note": "Google Drive File Stream cache. Re-syncs from Google." },
+  { "id": "location-analytics", "name": "Location Analytics", "path": "~/Library/Caches/com.apple.geod", "category": "Apps", "safety": "safe", "note": "Temporary data used by Apple's location analytics. Safe to delete — no effect on Maps or other apps." },
+  { "id": "apple-mediaanalysis", "name": "Apple Media Analysis", "path": "~/Library/Caches/com.apple.MediaAnalysis", "category": "Apps", "safety": "safe", "note": "Photos and Spotlight media analysis cache. Rebuilt in the background." },
+
+  { "id": "user-logs", "name": "App logs", "path": "~/Library/Logs", "category": "System", "safety": "safe", "note": "Application log files. Safe to clear." },
+  { "id": "chrome-cache", "name": "Chrome cache", "path": "~/Library/Caches/Google/Chrome", "category": "System", "safety": "safe", "note": "HTTP cache only — not profiles, passwords, or extensions. Those live in Application Support/Google (Check first)." },
+  { "id": "firefox-cache", "name": "Firefox cache", "path": "~/Library/Caches/Firefox", "category": "System", "safety": "safe", "note": "Firefox browser cache." },
+  { "id": "brave-cache", "name": "Brave cache", "path": "~/Library/Caches/BraveSoftware", "category": "System", "safety": "safe", "note": "Brave browser cache." },
+  { "id": "google-chrome-support", "name": "Google app data", "path": "~/Library/Application Support/Google", "category": "System", "safety": "check", "note": "Chrome/Drive profile data and caches. Clearing may sign you out or remove offline files." },
+  { "id": "mail-attachments", "name": "Mail attachments cache", "path": "~/Library/Mail/V10", "category": "System", "safety": "check", "note": "Mail.app downloaded attachments and cache. May re-download from server." },
+  { "id": "ios-backups", "name": "iOS device backups", "path": "~/Library/Application Support/MobileSync/Backup", "category": "System", "safety": "check", "note": "iPhone/iPad backups. Only remove backups you no longer need." }
 ]
